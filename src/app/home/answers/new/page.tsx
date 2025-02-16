@@ -21,7 +21,6 @@ export default function CreateAnswer() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
-  const token = Cookies.get("jwt") as string;
 
   // Fetch questions for selection
   const { data: questions, isLoading: isFetchingQuestions } = useQuery(

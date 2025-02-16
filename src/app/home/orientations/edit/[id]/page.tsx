@@ -21,7 +21,6 @@ export default function EditOrientation() {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
   const { id }: any = useParams();
-  const token = Cookies.get("jwt") as string;
 
   // Fetch orientation data
   const { data: orientationData, isLoading: isFetchingOrientation } = useQuery(

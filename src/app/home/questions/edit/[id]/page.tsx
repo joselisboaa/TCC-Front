@@ -20,7 +20,6 @@ export default function EditQuestion() {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
   const { id }: any = useParams(); 
-  const token = Cookies.get("jwt") as string;
 
   // Fetch question data
   const { data: questionData, isLoading: isFetchingQuestion } = useQuery(
@@ -46,15 +45,11 @@ export default function EditQuestion() {
     }
   );
 
-  // Fetch user groups
   const { data: userGroups, isLoading: isFetchingUserGroups } = useQuery(
     "userGroups",
     async () => {
       const response = await fetchRequest<null, UserGroup[]>("/user-groups", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        method: "GET"
       });
       return response.body;
     },

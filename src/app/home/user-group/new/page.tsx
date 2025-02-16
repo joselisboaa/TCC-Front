@@ -14,7 +14,6 @@ export default function CreateUserGroup() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
-  const token = Cookies.get("jwt") as string;
 
   const createMutation = useMutation(
     async () => {

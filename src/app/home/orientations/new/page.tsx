@@ -21,7 +21,6 @@ export default function CreateOrientation() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
-  const token = Cookies.get("jwt") as string;
 
   // Fetch answers for selection
   const { data: answers, isLoading: isFetchingAnswers } = useQuery(

@@ -17,7 +17,6 @@ export default function UserGroups() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { enqueueSnackbar } = useSnackbar();
-  const token = Cookies.get("jwt") as string;
 
   const { data: userGroups, isLoading } = useQuery<UserGroup[]>(
     "userGroups",

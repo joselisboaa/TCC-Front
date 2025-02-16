@@ -18,7 +18,6 @@ export default function Answers() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
-  const token = Cookies.get("jwt") as string;
 
   useEffect(() => {
     async function fetchAnswers() {

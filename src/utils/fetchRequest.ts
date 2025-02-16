@@ -30,7 +30,7 @@ export default async function fetchRequest<T, U>(endpoint: string, options: fetc
             ...otherOptions,
         });
 
-        let responseBody = null;
+        let responseBody: any = null;
 
         const contentType = response.headers.get("Content-Type");
         if (contentType?.includes("application/json")) {

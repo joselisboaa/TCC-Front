@@ -15,7 +15,6 @@ export default function EditUserGroup() {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
   const { id }: any = useParams(); 
-  const token = Cookies.get("jwt") as string;
 
   const { data, isLoading: isFetching } = useQuery(
     ["userGroup", id],

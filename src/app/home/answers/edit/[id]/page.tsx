@@ -21,7 +21,6 @@ export default function EditAnswer() {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
   const { id }: any = useParams(); 
-  const token = Cookies.get("jwt") as string;
 
   // Fetch answer data
   const { data: answerData, isLoading: isFetchingAnswer } = useQuery(

@@ -23,16 +23,12 @@ export default function QuestionForm({ questionId }: QuestionFormProps) {
   const [userGroup, setUserGroup] = useState<UserGroup | null>(null);
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
-  const token = Cookies.get("jwt") as string;
 
   const { data: userGroups, isLoading: loadingGroups } = useQuery<UserGroup[]>(
     "userGroups",
     async () => {
       const response = await fetchRequest<null, UserGroup[]>("/user-groups", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        method: "GET"
       });
       return response.body;
     },
