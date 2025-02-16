@@ -79,19 +79,19 @@ export default function Navbar() {
           onClick={() => toggleDrawer(false)}
           onKeyDown={() => toggleDrawer(false)}
         >
-          <ListItem button onClick={() => navigateTo("/home/user-group")}>
+          <ListItem component="button" onClick={() => navigateTo("/home/user-group")} sx={{ cursor: "pointer" }}>
             <ListItemText primary="Grupos" />
           </ListItem>
-          <ListItem button onClick={() => navigateTo("/home/questions")}>
+          <ListItem component="button" onClick={() => navigateTo("/home/questions")} sx={{ cursor: "pointer" }}>
             <ListItemText primary="Questões" />
           </ListItem>
-          <ListItem button onClick={() => navigateTo("/home/answers")}>
+          <ListItem component="button" onClick={() => navigateTo("/home/answers")} sx={{ cursor: "pointer" }}>
             <ListItemText primary="Respostas" />
           </ListItem>
-          <ListItem button onClick={() => navigateTo("/home/orientations")}>
+          <ListItem component="button" onClick={() => navigateTo("/home/orientations")} sx={{ cursor: "pointer" }}>
             <ListItemText primary="Orientações" />
           </ListItem>
-          <ListItem button onClick={handleLogout}>
+          <ListItem component="button" onClick={handleLogout} sx={{ cursor: "pointer" }}>
             <ListItemText primary="Sair" />
           </ListItem>
         </List>
