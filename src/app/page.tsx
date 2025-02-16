@@ -1,36 +1,39 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import { useSearchParams, useRouter, ReadonlyURLSearchParams } from "next/navigation";
+import React, { useEffect, useState, Suspense } from "react";
 import Image from "next/image";
 import Cookies from "js-cookie";
 import fetchRequest from "../utils/fetchRequest";
-import { useQuery } from "react-query";
 import useVerifyAuth from "@/utils/hooks/useVerifyAuth";
+
+const SearchHandler = ({ router }: { router: ReturnType<typeof useRouter> }) => {
+  const searchParams = useSearchParams() as ReadonlyURLSearchParams;
+  const search = searchParams.get("code");
+
+  useEffect(() => {
+    if (search) {
+      Cookies.set("jwt", search);
+      router.push("/home");
+    }
+  }, [search, router]);
+
+  return null;
+};
 
 const LoginPage = () => {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const search = searchParams?.get("code");
-
-  if (search) {
-    Cookies.set("jwt", search);
-    router.push("/home");
-  }
-
   const myJwt = Cookies.get("jwt");
-
-  const { data, isLoading: isVerifying, isError } = useVerifyAuth(myJwt) as any;
+  const { data, isLoading: isVerifying, isError } = useVerifyAuth(myJwt);
 
   useEffect(() => {
     if (data?.body.redirectURL) {
       router.push(data.body.redirectURL);
     }
-  }, [data]);
+  }, [data, router]);
 
   const handleGoogleLogin = async () => {
     let redirectPath = "";
@@ -54,13 +57,19 @@ const LoginPage = () => {
       );
     } finally {
       setLoading(false);
-      router.push(redirectPath);
+      if (redirectPath) {
+        router.push(redirectPath);
+      }
     }
   };
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-gray-100">
       <div className="flex flex-col items-center bg-white p-8 rounded-lg shadow-lg text-center w-full max-w-4xl h-full min-h-screen md:min-h-0 md:h-auto">
+        <Suspense fallback={<div>Carregando...</div>}>
+          <SearchHandler router={router} />
+        </Suspense>
+
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600 mb-4">
           Mapeamento de Acessibilidade
         </h1>
@@ -83,7 +92,7 @@ const LoginPage = () => {
             <span>Carregando...</span>
           ) : (
             <>
-              <Image
+              <img
                 src="https://developers.google.com/identity/images/g-logo.png"
                 alt="Google Logo"
                 className="w-5 h-5 sm:w-6 sm:h-6 mr-2"

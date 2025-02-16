@@ -7,18 +7,14 @@ import { Box, Button, TextField, Autocomplete, CircularProgress, Typography } fr
 import { useSnackbar } from "notistack";
 import { useQuery, useMutation } from "react-query";
 import fetchRequest from "@/utils/fetchRequest";
-import Cookies from "js-cookie";
 
-interface UserGroup {
+
+export interface UserGroup {
   id: number;
   text: string;
 }
 
-interface QuestionFormProps {
-  questionId?: string;
-}
-
-export default function QuestionForm({ questionId }: QuestionFormProps) {
+export default function QuestionForm({ questionId }: any) {
   const [text, setText] = useState("");
   const [userGroup, setUserGroup] = useState<UserGroup | null>(null);
   const router = useRouter();
