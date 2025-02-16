@@ -83,7 +83,7 @@ const LoginPage = () => {
             <span>Carregando...</span>
           ) : (
             <>
-              <img
+              <Image
                 src="https://developers.google.com/identity/images/g-logo.png"
                 alt="Google Logo"
                 className="w-5 h-5 sm:w-6 sm:h-6 mr-2"
