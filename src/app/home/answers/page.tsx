@@ -11,6 +11,16 @@ import Cookies from "js-cookie";
 interface Answer {
   id: string;
   text: string;
+  question: {
+    id: number;
+    text: string;
+    other: boolean;
+    user_group: {
+      id: number;
+      text: string;
+      description: string;
+    }
+  }
 }
 
 export default function Answers() {
@@ -67,7 +77,7 @@ export default function Answers() {
         variant="contained"
         color="primary"
         onClick={() => router.push("/home/answers/new")}
-        sx={{ marginBottom: 2 }}
+        sx={{ marginBottom: 2, backgroundColor: "#7E57C2" }}
       >
         Criar Nova Resposta
       </Button>
@@ -82,6 +92,12 @@ export default function Answers() {
             <CardContent sx={{ flex: 1 }}>
               <Typography variant="h6" component="div">
                 {answer.text}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                Pergunta: {answer.question.text}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                Grupo de Usuário: {answer.question.user_group.text}
               </Typography>
             </CardContent>
             <CardActions>
