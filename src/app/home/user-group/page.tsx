@@ -1,16 +1,15 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, CardActions, CardContent, Typography, CircularProgress, Box } from "@mui/material";
 import { useQuery, useMutation, useQueryClient } from "react-query";
 import { useSnackbar } from "notistack";
 import fetchRequest from "@/utils/fetchRequest";
-import Cookies from "js-cookie";
 
 interface UserGroup {
   id: string;
   text: string;
+  description: string;
 }
 
 export default function UserGroups() {
@@ -24,6 +23,7 @@ export default function UserGroups() {
       const response = await fetchRequest<null, UserGroup[]>("/user-groups", {
         method: "GET",
       });
+
       return response.body;
     },
     {
@@ -69,9 +69,8 @@ export default function UserGroups() {
       </Typography>
       <Button
         variant="contained"
-        color="primary"
         onClick={() => router.push("/home/user-group/new")}
-        sx={{ marginBottom: 2 }}
+        sx={{ marginBottom: 2, backgroundColor: "#7E57C2" }}
       >
         Criar Novo Grupo
       </Button>
@@ -90,6 +89,9 @@ export default function UserGroups() {
             <CardContent sx={{ flex: 1 }}>
               <Typography variant="h6" component="div">
                 {group.text}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                Descrição: {group.description}
               </Typography>
             </CardContent>
             <CardActions>
