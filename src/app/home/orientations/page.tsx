@@ -13,6 +13,19 @@ interface Orientation {
   text: string;
   value: number;
   answer_id: number;
+  answer: {
+    id: number;
+    text: string;
+    question: {
+      id: number;
+      text: string;
+      user_group: {
+        id: number;
+        text: string;
+        description: string;
+      }
+    }
+  }
 }
 
 export default function OrientationsPage() {
@@ -69,7 +82,7 @@ export default function OrientationsPage() {
         variant="contained"
         color="primary"
         onClick={() => router.push("/home/orientations/new")}
-        sx={{ marginBottom: 2 }}
+        sx={{ marginBottom: 2, backgroundColor: "#7E57C2" }}
       >
         Nova Orientação
       </Button>
@@ -80,13 +93,22 @@ export default function OrientationsPage() {
       ) : (
         <Box sx={{ display: "grid", gap: 2 }}>
           {orientations.map((orientation) => (
-            <Card key={orientation.id} variant="outlined" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 2 }}>
+            <Card key={orientation.id} variant="outlined" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingInline: 2 }}>
               <CardContent sx={{ flex: 1 }}>
                 <Typography variant="h6" component="div">
                   {orientation.text}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Peso da Orientação: {orientation.value}
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Pergunta: {orientation.answer.question.text}
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Resposta: {orientation.answer.text}
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Grupo de Usuário: {orientation.answer.question.user_group.text}
                 </Typography>
               </CardContent>
               <CardActions>
