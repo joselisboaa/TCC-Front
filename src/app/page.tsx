@@ -70,7 +70,7 @@ const LoginPage = () => {
           <SearchHandler router={router} />
         </Suspense>
 
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600 mb-4">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-main_theme mb-4">
           Mapeamento de Acessibilidade
         </h1>
         <p className="text-sm sm:text-base lg:text-lg text-gray-600 mb-8">

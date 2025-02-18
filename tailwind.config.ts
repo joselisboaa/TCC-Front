@@ -12,6 +12,7 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        main_theme: "#7E57C2"
       },
       screens: {
         "xs": "480px", 
