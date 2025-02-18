@@ -11,6 +11,11 @@ import Cookies from "js-cookie";
 interface Question {
   id: string;
   text: string;
+  user_group: {
+    id: number;
+    text: string;
+    description: string;
+  }
 }
 
 export default function Questions() {
@@ -67,7 +72,7 @@ export default function Questions() {
         variant="contained"
         color="primary"
         onClick={() => router.push("/home/questions/new")}
-        sx={{ marginBottom: 2 }}
+        sx={{ marginBottom: 2, backgroundColor: "#7E57C2" }}
       >
         Criar Nova Questão
       </Button>
@@ -82,6 +87,9 @@ export default function Questions() {
             <CardContent sx={{ flex: 1 }}>
               <Typography variant="h6" component="div">
                 {question.text}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                Grupo de Usuário: {question.user_group.text}
               </Typography>
             </CardContent>
             <CardActions>
