@@ -53,7 +53,7 @@ export default function Home() {
   }, []);
 
   return (
-    <Box sx={{ padding: 4, backgroundColor: "#f4f6f8", minHeight: "100vh" }}>
+    <Box sx={{ padding: 2, minHeight: "100vh" }}>
       <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: "bold", color: "#333", textAlign: "center" }}>
         Bem-vindo ao Mapeamento de Acessibilidade
       </Typography>
