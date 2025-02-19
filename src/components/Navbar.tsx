@@ -3,7 +3,7 @@
 
 import React, { useState } from "react";
 import { AppBar, Toolbar, Typography, Button, Box, Drawer, List, ListItem, ListItemText, IconButton, Divider } from "@mui/material";
-import { Menu as MenuIcon, ExitToApp as ExitIcon, Group, Help, QuestionAnswer, Info } from "@mui/icons-material";
+import { Menu as MenuIcon, Person, ExitToApp as ExitIcon, Group, Help, QuestionAnswer, Info } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import HomeIcon from '@mui/icons-material/Home';
 import Cookies from "js-cookie";
@@ -40,6 +40,9 @@ export default function Navbar() {
           <Box>
             <Button color="inherit" startIcon={<HomeIcon />} onClick={() => navigateTo("/home")}>
               Inicio
+            </Button>
+            <Button color="inherit" startIcon={<Person />} onClick={() => navigateTo("/home/users")}>
+              Usuários
             </Button>
             <Button color="inherit" startIcon={<Group />} onClick={() => navigateTo("/home/user-group")}>
               Grupos
@@ -80,6 +83,10 @@ export default function Navbar() {
             <ListItem component="button" onClick={() => navigateTo("/home")}>
               <HomeIcon sx={{ mr: 1 }} />
               <ListItemText primary="Início" />
+            </ListItem>
+            <ListItem component="button" onClick={() => navigateTo("/home/users")}>
+              <Person sx={{ mr: 1 }} />
+              <ListItemText primary="Usuários" />
             </ListItem>
             <ListItem component="button" onClick={() => navigateTo("/home/user-group")}>
               <Group sx={{ mr: 1 }} />
