@@ -7,7 +7,6 @@ import { Menu as MenuIcon, Person, ExitToApp as ExitIcon, Group, Help, QuestionA
 import { useRouter } from "next/navigation";
 import HomeIcon from '@mui/icons-material/Home';
 import Cookies from "js-cookie";
-import Home from "@/app/home/page";
 
 export default function Navbar() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
