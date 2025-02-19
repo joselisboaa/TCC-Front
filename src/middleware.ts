@@ -1,32 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fetchRequest from './utils/fetchRequest';
+import { jwtVerify } from 'jose';
+
+const JWT_SECRET = process.env.JWT_SECRET;
+
+const adminRoutes = ['/home/answers', '/home/orientations', '/home/questions', '/home/user-group', '/home/users'];
 
 export async function middleware(req: NextRequest) {
-  const jwt = req.cookies.get('jwt')?.value;
+  const jwtToken = req.cookies.get('jwt')?.value;
 
-  const protectedRoutes = ['/home', '/dashboard', '/answers', '/user-group'];
-
-  
-  if (protectedRoutes.some(route => req.nextUrl.pathname.startsWith(route))) {
-    if (!jwt) {
-      const loginUrl = new URL('/', req.url);
-      return NextResponse.redirect(loginUrl);
-    }
-
-    const response = await fetchRequest<null, { redirectURL: string, message: string }>(
-      `/oauth2/login/verify?jwt=${jwt}`,
-      { method: "GET" }
-    );
-
-    if (response.body.message === "Sessão expirada!") {
-      const loginUrl = new URL('/', req.url);
-      return NextResponse.redirect(loginUrl);
-    }
+  if (!jwtToken) {
+    return NextResponse.redirect(new URL('/', req.url));
   }
 
-  return NextResponse.next();
+  try {
+    const secret = new TextEncoder().encode(JWT_SECRET);
+    const { payload } = await jwtVerify(jwtToken, secret);
+
+    const user = payload.user as {
+      id: number;
+      phone_number: string;
+      email: string;
+      password: string;
+      user_groups: { id: number; text: string; description: string }[];
+    };
+
+    if (!user || !user.user_groups) {
+      return NextResponse.redirect(new URL('/', req.url));
+    }
+
+    const isAdmin = user.user_groups.some(group => 
+      group.text.toLowerCase() === "administrador"
+    );
+
+    if (adminRoutes.some(route => req.nextUrl.pathname.startsWith(route)) && !isAdmin) {
+      return NextResponse.redirect(new URL('/home', req.url));
+    }
+
+    return NextResponse.next();
+  } catch (error) {
+    console.error("Erro ao validar JWT:", error);
+    return NextResponse.redirect(new URL('/', req.url));
+  }
 }
 
 export const config = {
-  matcher: ['/home/:path*', '/dashboard/:path*', '/answers/:path*', '/user-group/:path*'],
+  matcher: ['/home/:path*'],
 };
