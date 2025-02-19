@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.NEXT_PUBLIC_JWT_SECRET;
 
 const adminRoutes = ['/home/answers', '/home/orientations', '/home/questions', '/home/user-group', '/home/users'];
 
@@ -32,8 +32,12 @@ export async function middleware(req: NextRequest) {
       group.text.toLowerCase() === "administrador"
     );
 
+    if (!isAdmin && req.nextUrl.pathname.startsWith('/home')) {
+      return NextResponse.redirect(new URL('/form', req.url));
+    }
+
     if (adminRoutes.some(route => req.nextUrl.pathname.startsWith(route)) && !isAdmin) {
-      return NextResponse.redirect(new URL('/home', req.url));
+      return NextResponse.redirect(new URL('/form', req.url));
     }
 
     return NextResponse.next();
