@@ -194,6 +194,7 @@ export default function EditUser() {
                 multiple
                 {...field}
                 options={userGroups}
+                noOptionsText="Nenhum grupo encontrado"
                 getOptionLabel={(option) => option.text}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
                 onChange={(_, newValue) => {
