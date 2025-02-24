@@ -3,23 +3,24 @@
 
 import { useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Box, Button, TextField, Typography, CircularProgress, Autocomplete, Paper, FormControlLabel, Switch } from "@mui/material";
+import { Box, Button, TextField, Typography, CircularProgress, Paper, Autocomplete, FormControlLabel, Switch } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { useQuery, useMutation } from "react-query";
-import fetchRequest from "@/utils/fetchRequest";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
+import fetchRequest from "@/utils/fetchRequest";
 
 interface UserGroup {
   id: number;
   text: string;
 }
 
-interface User {
-  name: string;
+interface UserForm {
+  name?: string;
   phone_number: string;
   email: string;
+  password: string;
   user_groups: UserGroup[];
   isAdmin: boolean;
 }
@@ -28,8 +29,14 @@ const schema = yup.object({
   name: yup.string().optional(),
   phone_number: yup.string().required("Número de telefone é obrigatório"),
   email: yup.string().email("Email inválido").required("Email é obrigatório"),
-  user_groups: yup.array().min(1, "Selecione pelo menos um grupo"),
-  isAdmin: yup.boolean(),
+  password: yup.string().required("Senha é obrigatória"),
+  user_groups: yup.array().of(
+    yup.object({
+      id: yup.number().required(),
+      text: yup.string().required(),
+    })
+  ).min(1, "Selecione pelo menos um grupo").required(),
+  isAdmin: yup.boolean().default(false),
 });
 
 export default function EditUser() {
@@ -43,12 +50,13 @@ export default function EditUser() {
     setValue,
     watch,
     formState: { errors },
-  } = useForm({
+  } = useForm<UserForm>({
     resolver: yupResolver(schema),
     defaultValues: {
       name: "",
       phone_number: "",
       email: "",
+      password: "",
       user_groups: [],
       isAdmin: false,
     },
@@ -57,16 +65,17 @@ export default function EditUser() {
   const { data: userData, isFetching: isFetchingUser } = useQuery(
     ["user", id],
     async () => {
-      const response = await fetchRequest<null, User>(`/users/${id}`, { method: "GET" });
+      const response = await fetchRequest<null, UserForm>(`/users/${id}`, { method: "GET" });
       return response.body;
     },
     {
       enabled: !!id,
-      initialData: () => ({ name: "", phone_number: "", email: "", user_groups: [], isAdmin: false }),
+      initialData: () => ({ name: "", phone_number: "", email: "", password: "", user_groups: [], isAdmin: false }),
       onSuccess: (data) => {
         setValue("name", data.name || "");
         setValue("phone_number", data.phone_number);
         setValue("email", data.email);
+        setValue("password", data.password);
         setValue("user_groups", data.user_groups);
         setValue("isAdmin", data.isAdmin);
       },
@@ -77,8 +86,8 @@ export default function EditUser() {
     }
   );
 
-  const { data: groups = [], isFetching: isFetchingGroups } = useQuery(
-    "user_groups",
+  const { data: userGroups = [], isFetching: isFetchingGroups } = useQuery(
+    "userGroups",
     async () => {
       const response = await fetchRequest<null, UserGroup[]>("/user-groups", { method: "GET" });
       return response.body;
@@ -90,8 +99,8 @@ export default function EditUser() {
     }
   );
 
-  const adminGroup = groups.find((group) => group.text.toLowerCase() === "administrador");
-  
+  const adminGroup = userGroups.find((group) => group.text.toLowerCase() === "administrador");
+
   useEffect(() => {
     const selectedGroups = watch("user_groups") as UserGroup[];
     if (adminGroup) {
@@ -101,7 +110,7 @@ export default function EditUser() {
   }, [watch("user_groups"), adminGroup]);
 
   const updateMutation = useMutation(
-    async (formData) => {
+    async (formData: UserForm) => {
       await fetchRequest(`/users/${id}`, {
         method: "PUT",
         body: formData,
@@ -118,7 +127,7 @@ export default function EditUser() {
     }
   );
 
-  const onSubmit = (data) => {
+  const onSubmit = (data: UserForm) => {
     updateMutation.mutate(data);
   };
 
@@ -170,16 +179,30 @@ export default function EditUser() {
           />
 
           <Controller
+            name="password"
+            control={control}
+            render={({ field }) => (
+              <TextField {...field} label="Senha" fullWidth variant="outlined" error={!!errors.password} helperText={errors.password?.message} />
+            )}
+          />
+
+          <Controller
             name="user_groups"
             control={control}
             render={({ field }) => (
               <Autocomplete
                 multiple
                 {...field}
-                options={groups}
+                options={userGroups}
                 getOptionLabel={(option) => option.text}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
-                onChange={(_, newValue) => field.onChange(newValue)}
+                onChange={(_, newValue) => {
+                  field.onChange(newValue);
+                  if (adminGroup) {
+                    const isAdmin = newValue.some((group) => group.id === adminGroup.id);
+                    setValue("isAdmin", isAdmin);
+                  }
+                }}
                 renderInput={(params) => <TextField {...params} label="Selecionar Grupos" fullWidth error={!!errors.user_groups} helperText={errors.user_groups?.message} />}
               />
             )}
@@ -189,7 +212,29 @@ export default function EditUser() {
             name="isAdmin"
             control={control}
             render={({ field }) => (
-              <FormControlLabel control={<Switch {...field} checked={field.value} color="primary" />} label="Usuário Administrador" />
+              <FormControlLabel
+                control={
+                  <Switch
+                    {...field}
+                    checked={field.value}
+                    color="primary"
+                    onChange={(e) => {
+                      field.onChange(e.target.checked);
+                      if (adminGroup) {
+                        const selectedGroups = watch("user_groups") as UserGroup[];
+                        if (e.target.checked) {
+                          if (!selectedGroups.some((group) => group.id === adminGroup.id)) {
+                            setValue("user_groups", [...selectedGroups, adminGroup]);
+                          }
+                        } else {
+                          setValue("user_groups", selectedGroups.filter((group) => group.id !== adminGroup.id));
+                        }
+                      }
+                    }}
+                  />
+                }
+                label="Usuário Administrador"
+              />
             )}
           />
 
