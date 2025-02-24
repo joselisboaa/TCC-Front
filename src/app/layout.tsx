@@ -1,7 +1,7 @@
 import "./globals.css";
 import { Inter } from "next/font/google";
 import QueryClientProviderComponent from "@/utils/layout"; 
-import { NotistackProvider } from "@/app/context/notistackContext";
+import { NotistackProvider } from "../app/context/notistackContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
