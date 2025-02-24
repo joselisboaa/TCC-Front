@@ -1,12 +1,15 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Box, Button, TextField, Typography, CircularProgress, Autocomplete, Paper, FormControlLabel, Switch } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { useQuery, useMutation } from "react-query";
 import fetchRequest from "@/utils/fetchRequest";
+import { useForm, Controller } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 
 interface UserGroup {
   id: number;
@@ -21,16 +24,35 @@ interface User {
   isAdmin: boolean;
 }
 
+const schema = yup.object({
+  phone_number: yup.string().required("Número de telefone é obrigatório"),
+  email: yup.string().email("Email inválido").required("Email é obrigatório"),
+  user_groups: yup.array().min(1, "Selecione pelo menos um grupo"),
+  isAdmin: yup.boolean(),
+});
+
 export default function EditUser() {
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [email, setEmail] = useState("");
-  const [selectedGroups, setSelectedGroups] = useState<UserGroup[]>([]);
-  const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
   const { id }: any = useParams();
 
-  const { data: userData, isLoading: isFetchingUser } = useQuery(
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm({
+    resolver: yupResolver(schema),
+    defaultValues: {
+      phone_number: "",
+      email: "",
+      user_groups: [],
+      isAdmin: false,
+    },
+  });
+
+  const { data: userData, isFetching: isFetchingUser } = useQuery(
     ["user", id],
     async () => {
       const response = await fetchRequest<null, User>(`/users/${id}`, { method: "GET" });
@@ -38,63 +60,48 @@ export default function EditUser() {
     },
     {
       enabled: !!id,
-      onError: (error: unknown) => {
+      initialData: () => ({ phone_number: "", email: "", user_groups: [], isAdmin: false }),
+      onSuccess: (data) => {
+        setValue("phone_number", data.phone_number);
+        setValue("email", data.email);
+        setValue("user_groups", data.user_groups);
+        setValue("isAdmin", data.isAdmin);
+      },
+      onError: (error) => {
         enqueueSnackbar(`Erro ao carregar o usuário: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
         router.push("/home/users");
       },
     }
   );
 
-  const { data: groups = [], isLoading: isFetchingGroups } = useQuery(
+  const { data: groups = [], isFetching: isFetchingGroups } = useQuery(
     "user_groups",
     async () => {
       const response = await fetchRequest<null, UserGroup[]>("/user-groups", { method: "GET" });
       return response.body;
     },
     {
-      onError: (error: unknown) => {
+      onError: (error) => {
         enqueueSnackbar(`Erro ao carregar grupos: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
       },
     }
   );
 
-  const adminGroup = groups.find(group => group.text.toLowerCase() === "administrador");
+  const adminGroup = groups.find((group) => group.text.toLowerCase() === "administrador");
 
   useEffect(() => {
-    if (userData) {
-      setPhoneNumber(userData.phone_number || "");
-      setEmail(userData.email || "");
-      setSelectedGroups(userData.user_groups || []);
-      setIsAdmin(userData.isAdmin || false);
-    }
-  }, [userData, groups]);
-
-  useEffect(() => {
+    const selectedGroups = watch("user_groups");
     if (adminGroup) {
-      if (isAdmin && !selectedGroups.some(group => group.id === adminGroup.id)) {
-        setSelectedGroups([...selectedGroups, adminGroup]);
-      } else if (!isAdmin) {
-        setSelectedGroups(selectedGroups.filter(group => group.id !== adminGroup.id));
-      }
+      const isAdmin = selectedGroups.some((group) => group.id === adminGroup.id);
+      setValue("isAdmin", isAdmin);
     }
-  }, [isAdmin, adminGroup]);
-
-  const handleGroupChange = (event, newValue) => {
-    setSelectedGroups(newValue);
-    if (adminGroup) {
-      setIsAdmin(newValue.some(group => group.id === adminGroup.id));
-    }
-  };
-
-  const handleAdminToggle = (event) => {
-    setIsAdmin(event.target.checked);
-  };
+  }, [watch("user_groups"), adminGroup]);
 
   const updateMutation = useMutation(
-    async () => {
+    async (formData) => {
       await fetchRequest(`/users/${id}`, {
         method: "PUT",
-        body: { phone_number: phoneNumber, email, user_groups: selectedGroups, isAdmin },
+        body: formData,
       });
     },
     {
@@ -102,18 +109,14 @@ export default function EditUser() {
         enqueueSnackbar("Usuário atualizado com sucesso!", { variant: "success" });
         router.push("/home/users");
       },
-      onError: (error: unknown) => {
+      onError: (error) => {
         enqueueSnackbar(`Erro ao atualizar o usuário: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
       },
     }
   );
 
-  const handleSubmit = () => {
-    if (!phoneNumber.trim() || !email.trim()) {
-      enqueueSnackbar("Preencha todos os campos", { variant: "warning" });
-      return;
-    }
-    updateMutation.mutate();
+  const onSubmit = (data) => {
+    updateMutation.mutate(data);
   };
 
   const handleCancel = () => {
@@ -138,31 +141,53 @@ export default function EditUser() {
           Atualize os detalhes do usuário abaixo.
         </Typography>
 
-        <Box sx={{ display: "grid", gap: 2 }}>
-          <TextField label="Número de Telefone" fullWidth value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} variant="outlined" />
-          <TextField label="Email" fullWidth value={email} onChange={(e) => setEmail(e.target.value)} variant="outlined" />
-
-          <Autocomplete
-            multiple
-            value={selectedGroups}
-            onChange={handleGroupChange}
-            options={groups}
-            getOptionLabel={(option) => option.text}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
-            renderInput={(params) => <TextField {...params} label="Selecionar Grupos" fullWidth required />}
+        <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ display: "grid", gap: 2 }}>
+          <Controller
+            name="phone_number"
+            control={control}
+            render={({ field }) => (
+              <TextField {...field} label="Número de Telefone" fullWidth variant="outlined" error={!!errors.phone_number} helperText={errors.phone_number?.message} />
+            )}
           />
 
-          <FormControlLabel
-            control={<Switch checked={isAdmin} onChange={handleAdminToggle} color="primary" />}
-            label="Usuário Administrador"
+          <Controller
+            name="email"
+            control={control}
+            render={({ field }) => (
+              <TextField {...field} label="Email" fullWidth variant="outlined" error={!!errors.email} helperText={errors.email?.message} />
+            )}
+          />
+
+          <Controller
+            name="user_groups"
+            control={control}
+            render={({ field }) => (
+              <Autocomplete
+                multiple
+                {...field}
+                options={groups}
+                getOptionLabel={(option) => option.text}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                onChange={(_, newValue) => field.onChange(newValue)}
+                renderInput={(params) => <TextField {...params} label="Selecionar Grupos" fullWidth error={!!errors.user_groups} helperText={errors.user_groups?.message} />}
+              />
+            )}
+          />
+
+          <Controller
+            name="isAdmin"
+            control={control}
+            render={({ field }) => (
+              <FormControlLabel control={<Switch {...field} checked={field.value} color="primary" />} label="Usuário Administrador" />
+            )}
           />
 
           <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
             <Button variant="contained" sx={{ backgroundColor: "#D32F2F", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { backgroundColor: "#B71C1C" } }} onClick={handleCancel}>
               Cancelar
-            </Button>
-            <Button variant="contained" sx={{ background: "linear-gradient(135deg, #7E57C2, #5E3BEE)", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" } }} onClick={handleSubmit} disabled={updateMutation.isLoading}>
-                {updateMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
+            </Button>            
+            <Button type="submit" variant="contained" sx={{ background: "linear-gradient(135deg, #7E57C2, #5E3BEE)", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" } }} disabled={updateMutation.isLoading}>
+              {updateMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
             </Button>
           </Box>
         </Box>
