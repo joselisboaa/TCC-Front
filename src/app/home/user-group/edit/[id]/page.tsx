@@ -92,8 +92,6 @@ export default function EditUserGroup() {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        height: "100vh",
-        backgroundColor: "#F8F9FA",
       }}
     >
       <Paper
