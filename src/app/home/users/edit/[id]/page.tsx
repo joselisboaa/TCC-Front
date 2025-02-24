@@ -17,8 +17,7 @@ interface UserGroup {
 }
 
 interface User {
-  id: number;
-  name?: string;
+  name: string;
   phone_number: string;
   email: string;
   user_groups: UserGroup[];
@@ -63,7 +62,7 @@ export default function EditUser() {
     },
     {
       enabled: !!id,
-      initialData: () => ({ phone_number: "", email: "", user_groups: [], isAdmin: false }),
+      initialData: () => ({ name: "", phone_number: "", email: "", user_groups: [], isAdmin: false }),
       onSuccess: (data) => {
         setValue("name", data.name || "");
         setValue("phone_number", data.phone_number);
@@ -92,9 +91,9 @@ export default function EditUser() {
   );
 
   const adminGroup = groups.find((group) => group.text.toLowerCase() === "administrador");
-
+  
   useEffect(() => {
-    const selectedGroups = watch("user_groups");
+    const selectedGroups = watch("user_groups") as UserGroup[];
     if (adminGroup) {
       const isAdmin = selectedGroups.some((group) => group.id === adminGroup.id);
       setValue("isAdmin", isAdmin);
