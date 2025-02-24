@@ -1,20 +1,29 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Box, Button, TextField, Typography, CircularProgress, Paper } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { useMutation, useQuery } from "react-query";
+import { useForm, Controller } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 import fetchRequest from "@/utils/fetchRequest";
 
+const schema = yup.object().shape({
+  text: yup.string().trim().required("O nome do grupo é obrigatório"),
+  description: yup.string().trim().optional(),
+});
+
 export default function EditUserGroup() {
-  const [text, setText] = useState("");
-  const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
   const { id }: any = useParams();
+
+  const { control, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm({
+    resolver: yupResolver(schema),
+    defaultValues: { text: "", description: "" },
+  });
 
   const { data, isLoading: isFetching } = useQuery(
     ["userGroup", id],
@@ -26,6 +35,10 @@ export default function EditUserGroup() {
     },
     {
       enabled: !!id,
+      onSuccess: (data) => {
+        setValue("text", data.text);
+        setValue("description", data.description);
+      },
       onError: (error: unknown) => {
         enqueueSnackbar(
           `Erro ao carregar o grupo: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
@@ -37,10 +50,10 @@ export default function EditUserGroup() {
   );
 
   const updateMutation = useMutation(
-    async () => {
+    async (formData: { text: string; description?: string }) => {
       await fetchRequest(`/user-groups/${id}`, {
         method: "PUT",
-        body: { text, description },
+        body: formData,
       });
     },
     {
@@ -57,20 +70,8 @@ export default function EditUserGroup() {
     }
   );
 
-  useEffect(() => {
-    if (data) {
-      setText(data.text);
-      setDescription(data.description);
-    }
-  }, [data]);
-
-  const handleSubmit = () => {
-    if (!text.trim() || !description.trim()) {
-      enqueueSnackbar("Todos os campos devem ser preenchidos.", { variant: "warning" });
-      return;
-    }
-    setLoading(true);
-    updateMutation.mutate();
+  const onSubmit = async (data: { text: string; description?: string }) => {
+    await updateMutation.mutateAsync(data);
   };
 
   const handleCancel = () => {
@@ -112,23 +113,39 @@ export default function EditUserGroup() {
           Atualize os dados do grupo de acessibilidade abaixo.
         </Typography>
 
-        <Box sx={{ display: "grid", gap: 2 }}>
-          <TextField
-            label="Nome do Grupo"
-            value={text || ""}
-            onChange={(e) => setText(e.target.value)}
-            fullWidth
-            variant="outlined"
+        <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ display: "grid", gap: 2 }}>
+          <Controller
+            name="text"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                label="Nome do Grupo"
+                fullWidth
+                variant="outlined"
+                error={!!errors.text}
+                helperText={errors.text?.message}
+              />
+            )}
           />
-          <TextField
-            label="Descrição"
-            value={description || ""}
-            onChange={(e) => setDescription(e.target.value)}
-            fullWidth
-            variant="outlined"
-            multiline
-            rows={3}
+
+          <Controller
+            name="description"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                label="Descrição"
+                fullWidth
+                variant="outlined"
+                multiline
+                rows={3}
+                error={!!errors.description}
+                helperText={errors.description?.message}
+              />
+            )}
           />
+
           <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
             <Button
               variant="contained"
@@ -147,6 +164,7 @@ export default function EditUserGroup() {
             </Button>
             <Button
               variant="contained"
+              type="submit"
               sx={{
                 background: "linear-gradient(135deg, #7E57C2, #5E3BEE)",
                 color: "#FFF",
@@ -156,10 +174,9 @@ export default function EditUserGroup() {
                 borderRadius: "8px",
                 "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" },
               }}
-              onClick={handleSubmit}
-              disabled={loading || updateMutation.isLoading}
+              disabled={isSubmitting || updateMutation.isLoading}
             >
-              {loading || updateMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
+              {isSubmitting || updateMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
             </Button>
           </Box>
         </Box>
