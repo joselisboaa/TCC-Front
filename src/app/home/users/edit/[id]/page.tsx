@@ -18,6 +18,7 @@ interface UserGroup {
 
 interface User {
   id: number;
+  name?: string;
   phone_number: string;
   email: string;
   user_groups: UserGroup[];
@@ -25,6 +26,7 @@ interface User {
 }
 
 const schema = yup.object({
+  name: yup.string().optional(),
   phone_number: yup.string().required("Número de telefone é obrigatório"),
   email: yup.string().email("Email inválido").required("Email é obrigatório"),
   user_groups: yup.array().min(1, "Selecione pelo menos um grupo"),
@@ -45,6 +47,7 @@ export default function EditUser() {
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
+      name: "",
       phone_number: "",
       email: "",
       user_groups: [],
@@ -62,6 +65,7 @@ export default function EditUser() {
       enabled: !!id,
       initialData: () => ({ phone_number: "", email: "", user_groups: [], isAdmin: false }),
       onSuccess: (data) => {
+        setValue("name", data.name || "");
         setValue("phone_number", data.phone_number);
         setValue("email", data.email);
         setValue("user_groups", data.user_groups);
@@ -142,6 +146,14 @@ export default function EditUser() {
         </Typography>
 
         <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ display: "grid", gap: 2 }}>
+          <Controller
+            name="name"
+            control={control}
+            render={({ field }) => (
+              <TextField {...field} label="Nome" fullWidth variant="outlined" error={!!errors.name} helperText={errors.name?.message} />
+            )}
+          />
+          
           <Controller
             name="phone_number"
             control={control}
