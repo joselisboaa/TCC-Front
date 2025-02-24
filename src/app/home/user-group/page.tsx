@@ -91,7 +91,7 @@ export default function UserGroups() {
                 {group.text}
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                Descrição: {group.description}
+                Descrição: {group.description ? group.description : "Nenhuma descrição fornecida"}
               </Typography>
             </CardContent>
             <CardActions>
