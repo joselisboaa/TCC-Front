@@ -1,26 +1,41 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Box, Button, TextField, Typography, CircularProgress, Paper } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { useMutation } from "react-query";
+import { useForm, Controller } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 import fetchRequest from "@/utils/fetchRequest";
 
+const schema = yup.object({
+  text: yup.string().required("Nome do grupo é obrigatório"),
+  description: yup.string().optional(),
+});
+
 export default function CreateUserGroup() {
-  const [groupName, setGroupName] = useState("");
-  const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
 
-  const createMutation = useMutation(
-    async () => {
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: yupResolver(schema),
+    defaultValues: {
+      text: "",
+      description: "",
+    },
+  });
 
+  const createMutation = useMutation(
+    async (formData) => {
       await fetchRequest("/user-groups", {
         method: "POST",
-        body: { text: groupName, description: description },
+        body: formData,
       });
     },
     {
@@ -28,7 +43,7 @@ export default function CreateUserGroup() {
         enqueueSnackbar("Grupo criado com sucesso!", { variant: "success" });
         router.push("/home/user-group");
       },
-      onError: (error: unknown) => {
+      onError: (error) => {
         enqueueSnackbar(
           `Erro ao criar grupo: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
           { variant: "error" }
@@ -37,13 +52,8 @@ export default function CreateUserGroup() {
     }
   );
 
-  const handleSubmit = () => {
-    if (!groupName.trim() || !description.trim()) {
-      enqueueSnackbar("Todos os campos devem ser preenchidos.", { variant: "warning" });
-      return;
-    }
-    setLoading(true);
-    createMutation.mutate();
+  const onSubmit = (data) => {
+    createMutation.mutate(data);
   };
 
   const handleCancel = () => {
@@ -55,9 +65,7 @@ export default function CreateUserGroup() {
       sx={{
         display: "flex",
         justifyContent: "center",
-        alignItems: "center",
-        height: "100vh",
-        backgroundColor: "#F8F9FA",
+        alignItems: "center"
       }}
     >
       <Paper
@@ -77,25 +85,39 @@ export default function CreateUserGroup() {
           Preencha os campos abaixo para criar um novo grupo de acessibilidade.
         </Typography>
 
-        <Box sx={{ display: "grid", gap: 2 }}>
-          <TextField
-            label="Nome do Grupo"
-            value={groupName}
-            onChange={(e) => setGroupName(e.target.value)}
-            fullWidth
-            variant="outlined"
+        <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ display: "grid", gap: 2 }}>
+          <Controller
             name="text"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                label="Nome do Grupo"
+                fullWidth
+                variant="outlined"
+                error={!!errors.text}
+                helperText={errors.text?.message}
+              />
+            )}
           />
-          <TextField
-            label="Descrição"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            fullWidth
-            variant="outlined"
-            multiline
+
+          <Controller
             name="description"
-            rows={3}
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                label="Descrição"
+                fullWidth
+                variant="outlined"
+                multiline
+                rows={3}
+                error={!!errors.description}
+                helperText={errors.description?.message}
+              />
+            )}
           />
+
           <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
             <Button
               variant="contained"
@@ -113,6 +135,7 @@ export default function CreateUserGroup() {
               Cancelar
             </Button>
             <Button
+              type="submit"
               variant="contained"
               sx={{
                 background: "linear-gradient(135deg, #7E57C2, #5E3BEE)",
@@ -123,10 +146,9 @@ export default function CreateUserGroup() {
                 borderRadius: "8px",
                 "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" },
               }}
-              onClick={handleSubmit}
-              disabled={loading || createMutation.isLoading}
+              disabled={createMutation.isLoading}
             >
-              {loading || createMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
+              {createMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
             </Button>
           </Box>
         </Box>
