@@ -38,6 +38,7 @@ export default function EditQuestion() {
     control,
     handleSubmit,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(schema),
@@ -99,7 +100,7 @@ export default function EditQuestion() {
     }
   );
 
-  if (isFetchingQuestion || isFetchingUserGroups) {
+  if (isFetchingQuestion || isFetchingUserGroups || getValues("userGroup.id") === 0) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
         <CircularProgress />
