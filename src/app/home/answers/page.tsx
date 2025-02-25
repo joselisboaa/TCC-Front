@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { Button, Card, CardActions, CardContent, Typography, CircularProgress, Box } from "@mui/material";
 import { useSnackbar } from "notistack";
 import fetchRequest from "@/utils/fetchRequest";
-import Cookies from "js-cookie";
 
 interface Answer {
   id: string;
