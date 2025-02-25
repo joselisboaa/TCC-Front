@@ -1,11 +1,13 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Box, Button, TextField, Typography, CircularProgress, Autocomplete, Paper, FormControlLabel, Switch } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { useQuery, useMutation } from "react-query";
+import { useForm, Controller } from "react-hook-form";
+import * as yup from "yup";
+import { yupResolver } from "@hookform/resolvers/yup";
 import fetchRequest from "@/utils/fetchRequest";
 
 interface Question {
@@ -13,28 +15,54 @@ interface Question {
   text: string;
 }
 
+interface Answer {
+  text: string;
+  question: Question;
+  other: boolean;
+}
+
+const schema = yup.object().shape({
+  text: yup.string().trim().required("O texto da resposta é obrigatório"),
+  question: yup
+  .object({
+    id: yup.number().required("A questão é obrigatória").moreThan(0, "A questão é obrigatória"),
+    text: yup.string().required("A questão é obrigatória"),
+  })
+  .required("A questão é obrigatória"),
+  other: yup.boolean().required("Campo 'Outros' é obrigatório"),
+});
+
 export default function EditAnswer() {
-  const [text, setText] = useState("");
-  const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
-  const [other, setOther] = useState(false);
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
   const { id }: any = useParams();
 
+  const { control, getValues, handleSubmit, setValue, formState: { errors }, } = useForm<Answer>({
+    resolver: yupResolver(schema),
+    defaultValues: {
+      text: "",
+      question: { id: 0, text: "" },
+      other: false,
+    },
+  });
+
   const { data: answerData, isLoading: isFetchingAnswer } = useQuery(
     ["answer", id],
     async () => {
-      const response = await fetchRequest<null, { text: string; question_id: number; other: boolean }>(
+      const response = await fetchRequest<null, { text: string; question: Question; question_id: number; other: boolean }>(
         `/answers/${id}`,
-        {
-          method: "GET",
-        }
+        { method: "GET" }
       );
       return response.body;
     },
     {
       enabled: !!id,
-      onError: (error: unknown) => {
+      onSuccess: (data) => {
+        setValue("text", data.text);
+        setValue("other", data.other);
+        setValue("question", { id: data.question.id, text: data.question.text });
+      },
+      onError: (error) => {
         enqueueSnackbar(
           `Erro ao carregar a resposta: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
           { variant: "error" }
@@ -47,13 +75,11 @@ export default function EditAnswer() {
   const { data: questions, isLoading: isFetchingQuestions } = useQuery(
     "questions",
     async () => {
-      const response = await fetchRequest<null, Question[]>("/questions", {
-        method: "GET",
-      });
+      const response = await fetchRequest<null, Question[]>("/questions", { method: "GET" });
       return response.body;
     },
     {
-      onError: (error: unknown) => {
+      onError: (error) => {
         enqueueSnackbar(
           `Erro ao carregar perguntas: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
           { variant: "error" }
@@ -63,10 +89,10 @@ export default function EditAnswer() {
   );
 
   const updateMutation = useMutation(
-    async () => {
+    async (data: Answer) => {
       await fetchRequest(`/answers/${id}`, {
         method: "PUT",
-        body: { text, question_id: selectedQuestion?.id, other },
+        body: { text: data.text, question_id: data.question.id, other: data.other },
       });
     },
     {
@@ -74,7 +100,7 @@ export default function EditAnswer() {
         enqueueSnackbar("Resposta atualizada com sucesso!", { variant: "success" });
         router.push("/home/answers");
       },
-      onError: (error: unknown) => {
+      onError: (error) => {
         enqueueSnackbar(
           `Erro ao atualizar a resposta: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
           { variant: "error" }
@@ -83,28 +109,8 @@ export default function EditAnswer() {
     }
   );
 
-  useEffect(() => {
-    if (answerData) {
-      setText(answerData.text);
-      setOther(answerData.other);
-      const associatedQuestion = questions?.find((q) => q.id === answerData.question_id);
-      setSelectedQuestion(associatedQuestion || null);
-    }
-  }, [answerData, questions]);
+  if (isFetchingAnswer || isFetchingQuestions || getValues("question.id") === 0) {
 
-  const handleSubmit = () => {
-    if (!text.trim() || !selectedQuestion) {
-      enqueueSnackbar("Preencha todos os campos", { variant: "warning" });
-      return;
-    }
-    updateMutation.mutate();
-  };
-
-  const handleCancel = () => {
-    router.push("/home/answers");
-  };
-
-  if (isFetchingAnswer || isFetchingQuestions) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
         <CircularProgress />
@@ -113,24 +119,8 @@ export default function EditAnswer() {
   }
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        height: "fit",
-      }}
-    >
-      <Paper
-        elevation={4}
-        sx={{
-          padding: 4,
-          width: "100%",
-          maxWidth: 420,
-          borderRadius: 3,
-          textAlign: "center",
-        }}
-      >
+    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "fit" }}>
+      <Paper elevation={4} sx={{ padding: 4, width: "100%", maxWidth: 420, borderRadius: 3, textAlign: "center" }}>
         <Typography variant="h4" component="h1" gutterBottom sx={{ color: "#5E3BEE" }}>
           Editar Resposta
         </Typography>
@@ -138,64 +128,86 @@ export default function EditAnswer() {
           Atualize os detalhes da resposta abaixo.
         </Typography>
 
-        <Box sx={{ display: "grid", gap: 2 }}>
-          <TextField
-            label="Texto da Resposta"
-            fullWidth
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            variant="outlined"
-          />
+        <form onSubmit={handleSubmit((data) => updateMutation.mutate(data))}>
+          <Box sx={{ display: "grid", gap: 2 }}>
+            <Controller
+              name="text"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  label="Texto da Resposta"
+                  fullWidth
+                  variant="outlined"
+                  error={!!errors.text}
+                  helperText={errors.text?.message}
+                />
+              )}
+            />
 
-          <Autocomplete
-            value={selectedQuestion}
-            onChange={(event, newValue) => setSelectedQuestion(newValue)}
-            options={questions || []}
-            getOptionLabel={(option) => option.text}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
-            loading={isFetchingQuestions}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Selecionar Pergunta"
-                fullWidth
-                required
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: (
-                    <>
-                      {isFetchingQuestions ? <CircularProgress size={20} /> : null}
-                      {params.InputProps.endAdornment}
-                    </>
-                  ),
-                }}
-              />
-            )}
-          />
+            <Controller
+              name="question"
+              control={control}
+              render={({ field }) => (
+                <Autocomplete
+                  {...field}
+                  options={questions || []}
+                  getOptionLabel={(option) => option.text}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  onChange={(_, newValue) => field.onChange(newValue)}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Selecionar Pergunta"
+                      fullWidth
+                      variant="outlined"
+                      error={!!errors.question}
+                      helperText={errors.question?.message}
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {isFetchingQuestions ? <CircularProgress size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                />
+              )}
+            />
 
-          <FormControlLabel
-            control={<Switch checked={other} onChange={(e) => setOther(e.target.checked)} color="primary" />}
-            label="Reposta com campo Outros"
-          />
+            <Controller
+              name="other"
+              control={control}
+              render={({ field }) => (
+                <FormControlLabel
+                  control={<Switch {...field} checked={field.value} color="primary" />}
+                  label="Outros"
+                />
+              )}
+            />
 
-          <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
-            <Button
-              variant="contained"
-              sx={{ backgroundColor: "#D32F2F", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { backgroundColor: "#B71C1C" } }}
-              onClick={handleCancel}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="contained"
-              sx={{ background: "linear-gradient(135deg, #7E57C2, #5E3BEE)", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" } }}
-              onClick={handleSubmit}
-              disabled={updateMutation.isLoading}
-            >
-              {updateMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
-            </Button>
+            <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
+              <Button
+                variant="contained"
+                sx={{ backgroundColor: "#D32F2F", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { backgroundColor: "#B71C1C" } }}
+                onClick={() => router.push("/home/answers")}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                sx={{ background: "linear-gradient(135deg, #7E57C2, #5E3BEE)", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" } }}
+                disabled={updateMutation.isLoading}
+              >
+                {updateMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
+              </Button>
+            </Box>
           </Box>
-        </Box>
+        </form>
       </Paper>
     </Box>
   );
