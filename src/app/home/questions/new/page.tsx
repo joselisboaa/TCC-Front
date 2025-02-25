@@ -29,7 +29,7 @@ const schema = yup.object().shape({
     .required("O grupo de usuários é obrigatório"),
 });
 
-export default function QuestionForm() {
+export default function CreateQuestion() {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
 
