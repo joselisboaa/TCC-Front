@@ -1,11 +1,13 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Box, Button, TextField, Autocomplete, CircularProgress, Typography, Paper } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { useQuery, useMutation } from "react-query";
+import { useForm, Controller } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 import fetchRequest from "@/utils/fetchRequest";
 
 export interface UserGroup {
@@ -13,18 +15,45 @@ export interface UserGroup {
   text: string;
 }
 
-export default function QuestionForm({ questionId }: any) {
-  const [text, setText] = useState("");
-  const [userGroup, setUserGroup] = useState<UserGroup | null>(null);
+const schema = yup.object().shape({
+  text: yup.string().trim().required("O texto da questão é obrigatório"),
+  userGroup: yup
+    .object()
+    .shape({
+      id: yup
+        .number()
+        .required("O grupo de usuários é obrigatório")
+        .typeError("O grupo de usuários é obrigatório"),
+      text: yup
+        .string()
+        .matches(/^(?!\s*$).+/, "O texto da questão não pode estar vazio")
+        .required("O texto da questão é obrigatório"),
+    })
+    .required("O grupo de usuários é obrigatório")
+    .test("valid-user-group", "O grupo de usuários é obrigatório", (value) => {
+      if (!value) return false;
+      return !(value.id === 0 && !value.text.trim());
+    }),
+});
+
+export default function QuestionForm() {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+  } = useForm({
+    resolver: yupResolver(schema),
+    defaultValues: { text: "", userGroup: { id: 0, text: ""} },  
+  });
 
   const { data: userGroups, isLoading: loadingGroups } = useQuery<UserGroup[]>(
     "userGroups",
     async () => {
-      const response = await fetchRequest<null, UserGroup[]>("/user-groups", {
-        method: "GET"
-      });
+      const response = await fetchRequest<null, UserGroup[]>("/user-groups", { method: "GET" });
       return response.body;
     },
     {
@@ -38,15 +67,16 @@ export default function QuestionForm({ questionId }: any) {
   );
 
   const saveQuestionMutation = useMutation(
-    async () => {
+    async (data: { text: string; userGroup: UserGroup }) => {
       await fetchRequest("/questions", {
         method: "POST",
-        body: { text, user_group_id: userGroup?.id },
+        body: { text: data.text, user_group_id: data.userGroup.id },
       });
     },
     {
       onSuccess: () => {
         enqueueSnackbar("Questão salva com sucesso!", { variant: "success" });
+        reset();
         router.push("/home/questions");
       },
       onError: (error: unknown) => {
@@ -58,74 +88,58 @@ export default function QuestionForm({ questionId }: any) {
     }
   );
 
-  const handleSubmit = () => {
-    if (!text.trim() || !userGroup) {
-      enqueueSnackbar("Preencha todos os campos", { variant: "warning" });
-      return;
-    }
-    saveQuestionMutation.mutate();
-  };
-
-  const handleCancel = () => {
-    router.push("/home/questions");
+  const onSubmit = async (data: { text: string; userGroup: UserGroup }) => {
+    await saveQuestionMutation.mutateAsync(data);
   };
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        justifyContent: "center",
-        height: "fit",
-      }}
-    >
-      <Paper
-        elevation={4}
-        sx={{
-          padding: 4,
-          width: "100%",
-          maxWidth: 420,
-          borderRadius: 3,
-          textAlign: "center",
-        }}
-      >
+    <Box sx={{ display: "flex", justifyContent: "center", height: "fit" }}>
+      <Paper elevation={4} sx={{ padding: 4, width: "100%", maxWidth: 420, borderRadius: 3, textAlign: "center" }}>
         <Typography variant="h4" component="h1" gutterBottom sx={{ color: "#5E3BEE" }}>
-          {questionId ? "Editar Questão" : "Criar Nova Questão"}
+          Criar Nova Questão
         </Typography>
         <Typography variant="body2" sx={{ color: "#666", marginBottom: 2 }}>
           Preencha os detalhes da questão abaixo.
         </Typography>
 
-        <Box sx={{ display: "grid", gap: 2 }}>
-          <TextField
-            label="Texto da questão"
-            fullWidth
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            variant="outlined"
+        <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ display: "grid", gap: 2 }}>
+          <Controller
+            name="text"
+            control={control}
+            render={({ field }) => (
+              <TextField {...field} label="Texto da questão" fullWidth variant="outlined" error={!!errors.text} helperText={errors.text?.message} />
+            )}
           />
 
-          <Autocomplete
-            value={userGroup}
-            onChange={(event, newValue) => setUserGroup(newValue)}
-            options={userGroups || []}
-            getOptionLabel={(option) => option.text}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
-            loading={loadingGroups}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Selecionar Grupo de Usuários"
-                fullWidth
-                required
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: (
-                    <>
-                      {loadingGroups ? <CircularProgress size={20} /> : null}
-                      {params.InputProps.endAdornment}
-                    </>
-                  ),
-                }}
+          <Controller
+            name="userGroup"
+            control={control}
+            render={({ field }) => (
+              <Autocomplete
+                {...field}
+                options={userGroups || []}
+                getOptionLabel={(option) => option.text}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                loading={loadingGroups}
+                onChange={(_, newValue) => field.onChange(newValue)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Selecionar Grupo de Usuários"
+                    fullWidth
+                    error={!!errors.userGroup}
+                    helperText={errors.userGroup?.message}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loadingGroups ? <CircularProgress size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
               />
             )}
           />
@@ -133,34 +147,18 @@ export default function QuestionForm({ questionId }: any) {
           <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
             <Button
               variant="contained"
-              sx={{
-                backgroundColor: "#D32F2F",
-                color: "#FFF",
-                fontWeight: "bold",
-                width: "11rem",
-                padding: "10px",
-                borderRadius: "8px",
-                "&:hover": { backgroundColor: "#B71C1C" },
-              }}
-              onClick={handleCancel}
+              sx={{ backgroundColor: "#D32F2F", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { backgroundColor: "#B71C1C" } }}
+              onClick={() => router.push("/home/questions")}
             >
               Cancelar
             </Button>
             <Button
               variant="contained"
-              sx={{
-                background: "linear-gradient(135deg, #7E57C2, #5E3BEE)",
-                color: "#FFF",
-                fontWeight: "bold",
-                width: "11rem",
-                padding: "10px",
-                borderRadius: "8px",
-                "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" },
-              }}
-              onClick={handleSubmit}
-              disabled={saveQuestionMutation.isLoading}
+              type="submit"
+              sx={{ background: "linear-gradient(135deg, #7E57C2, #5E3BEE)", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" } }}
+              disabled={isSubmitting || saveQuestionMutation.isLoading}
             >
-              {saveQuestionMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
+              {isSubmitting || saveQuestionMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
             </Button>
           </Box>
         </Box>
