@@ -3,7 +3,7 @@
 
 import React, { useState } from "react";
 import { AppBar, Toolbar, Typography, Button, Box, Drawer, List, ListItem, ListItemText, IconButton, Divider } from "@mui/material";
-import { Menu as MenuIcon, Person, ExitToApp as ExitIcon, Group, Help, QuestionAnswer, Info } from "@mui/icons-material";
+import { Menu as MenuIcon, Person, ExitToApp as ExitIcon, Group, Help, QuestionAnswer, Info, Assessment } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import HomeIcon from '@mui/icons-material/Home';
 import Cookies from "js-cookie";
@@ -55,6 +55,9 @@ export default function Navbar() {
             <Button color="inherit" startIcon={<Info />} onClick={() => navigateTo("/home/orientations")}>
               Orientações
             </Button>
+            <Button color="inherit" startIcon={<Assessment />} onClick={() => navigateTo("/home/reports")}>
+              Relatórios
+            </Button>
             <Button
               color="inherit"
               onClick={handleLogout}
@@ -102,6 +105,10 @@ export default function Navbar() {
             <ListItem component="button" onClick={() => navigateTo("/home/orientations")}>
               <Info sx={{ mr: 1 }} />
               <ListItemText primary="Orientações" />
+            </ListItem>
+            <ListItem component="button" onClick={() => navigateTo("/home/reports")}>
+              <Assessment sx={{ mr: 1 }} />
+              <ListItemText primary="Relatórios" />
             </ListItem>
           </List>
           <Divider />
