@@ -20,20 +20,13 @@ const schema = yup.object().shape({
   userGroup: yup
     .object()
     .shape({
-      id: yup
-        .number()
-        .required("O grupo de usuários é obrigatório")
-        .typeError("O grupo de usuários é obrigatório"),
-      text: yup
-        .string()
-        .matches(/^(?!\s*$).+/, "O texto da questão não pode estar vazio")
-        .required("O texto da questão é obrigatório"),
+      id: yup.number().required(),
+      text: yup.string().required(),
     })
-    .required("O grupo de usuários é obrigatório")
     .test("valid-user-group", "O grupo de usuários é obrigatório", (value) => {
-      if (!value) return false;
-      return !(value.id === 0 && !value.text.trim());
-    }),
+      return value && value.id !== 0 && value.text.trim() !== "";
+    })
+    .required("O grupo de usuários é obrigatório"),
 });
 
 export default function QuestionForm() {
