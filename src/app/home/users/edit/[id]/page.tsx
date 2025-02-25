@@ -49,6 +49,7 @@ export default function EditUser() {
     handleSubmit,
     setValue,
     watch,
+    getValues,
     formState: { errors },
   } = useForm<UserForm>({
     resolver: yupResolver(schema),
@@ -135,7 +136,7 @@ export default function EditUser() {
     router.push("/home/users");
   };
 
-  if (isFetchingUser || isFetchingGroups) {
+  if (isFetchingUser || isFetchingGroups || getValues("user_groups").length === 0) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
         <CircularProgress />
