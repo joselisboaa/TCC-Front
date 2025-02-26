@@ -10,9 +10,14 @@ import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import fetchRequest from "@/utils/fetchRequest";
 
+interface UserGroup {
+  text?: string;
+}
+
 interface Question {
   id: number;
   text: string;
+  user_group?: UserGroup;
 }
 
 interface Answer {
@@ -24,53 +29,34 @@ interface Answer {
 const schema = yup.object().shape({
   text: yup.string().trim().required("O texto da resposta é obrigatório"),
   question: yup
-  .object({
-    id: yup.number().required("A questão é obrigatória").moreThan(0, "A questão é obrigatória"),
-    text: yup.string().required("A questão é obrigatória"),
-  })
-  .required("A questão é obrigatória"),
+    .object({
+      id: yup.number().required("A questão é obrigatória").moreThan(0, "A questão é obrigatória"),
+      text: yup.string().required("A questão é obrigatória"),
+      user_group: yup.object().shape({ text: yup.string().optional() }).optional(),
+    })
+    .required("A questão é obrigatória"),
   other: yup.boolean().required("Campo 'Outros' é obrigatório"),
 });
+
 
 export default function EditAnswer() {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
   const { id }: any = useParams();
 
-  const { control, getValues, handleSubmit, setValue, formState: { errors }, } = useForm<Answer>({
+  const { control, getValues, handleSubmit, setValue, formState: { errors } } = useForm<Answer>({
     resolver: yupResolver(schema),
     defaultValues: {
       text: "",
-      question: { id: 0, text: "" },
-      other: false,
+      question: { 
+        id: 0, 
+        text: "",
+        user_group: { text: "" }
+      },
+      other: false
     },
   });
-
-  const { data: answerData, isLoading: isFetchingAnswer } = useQuery(
-    ["answer", id],
-    async () => {
-      const response = await fetchRequest<null, { text: string; question: Question; question_id: number; other: boolean }>(
-        `/answers/${id}`,
-        { method: "GET" }
-      );
-      return response.body;
-    },
-    {
-      enabled: !!id,
-      onSuccess: (data) => {
-        setValue("text", data.text);
-        setValue("other", data.other);
-        setValue("question", { id: data.question.id, text: data.question.text });
-      },
-      onError: (error) => {
-        enqueueSnackbar(
-          `Erro ao carregar a resposta: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
-          { variant: "error" }
-        );
-        router.push("/home/answers");
-      },
-    }
-  );
+  
 
   const { data: questions, isLoading: isFetchingQuestions } = useQuery(
     "questions",
@@ -84,6 +70,38 @@ export default function EditAnswer() {
           `Erro ao carregar perguntas: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
           { variant: "error" }
         );
+      },
+    }
+  );
+
+  const { data: answerData, isLoading: isFetchingAnswer } = useQuery(
+    ["answer", id],
+    async () => {
+      const response = await fetchRequest<null, { text: string; question: Question; question_id: number; other: boolean }>(
+        `/answers/${id}`,
+        { method: "GET" }
+      );
+      return response.body;
+    },
+    {
+      enabled: !!id,
+      onSuccess: (data) => {
+        const matchedQuestion = questions?.find(q => q.id === data.question.id);
+        setValue("text", data.text);
+        setValue("other", data.other);
+        setValue("question", {
+          id: data.question.id,
+          text: data.question.text,
+          user_group: matchedQuestion?.user_group,
+        });
+           
+      },
+      onError: (error) => {
+        enqueueSnackbar(
+          `Erro ao carregar a resposta: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+          { variant: "error" }
+        );
+        router.push("/home/answers");
       },
     }
   );
@@ -110,7 +128,6 @@ export default function EditAnswer() {
   );
 
   if (isFetchingAnswer || isFetchingQuestions || getValues("question.id") === 0) {
-
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
         <CircularProgress />
@@ -134,14 +151,7 @@ export default function EditAnswer() {
               name="text"
               control={control}
               render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Texto da Resposta"
-                  fullWidth
-                  variant="outlined"
-                  error={!!errors.text}
-                  helperText={errors.text?.message}
-                />
+                <TextField {...field} label="Texto da Resposta" fullWidth variant="outlined" error={!!errors.text} helperText={errors.text?.message} />
               )}
             />
 
@@ -152,27 +162,11 @@ export default function EditAnswer() {
                 <Autocomplete
                   {...field}
                   options={questions || []}
-                  getOptionLabel={(option) => option.text}
+                  getOptionLabel={(option) => `${option.text} ${option.user_group?.text ? "(" + option.user_group.text + ")" : ""}`}
                   isOptionEqualToValue={(option, value) => option.id === value.id}
                   onChange={(_, newValue) => field.onChange(newValue)}
                   renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Selecionar Pergunta"
-                      fullWidth
-                      variant="outlined"
-                      error={!!errors.question}
-                      helperText={errors.question?.message}
-                      InputProps={{
-                        ...params.InputProps,
-                        endAdornment: (
-                          <>
-                            {isFetchingQuestions ? <CircularProgress size={20} /> : null}
-                            {params.InputProps.endAdornment}
-                          </>
-                        ),
-                      }}
-                    />
+                    <TextField {...params} label="Selecionar Pergunta" fullWidth variant="outlined" error={!!errors.question} helperText={errors.question?.message} />
                   )}
                 />
               )}
@@ -182,15 +176,12 @@ export default function EditAnswer() {
               name="other"
               control={control}
               render={({ field }) => (
-                <FormControlLabel
-                  control={<Switch {...field} checked={field.value} color="primary" />}
-                  label="Outros"
-                />
+                <FormControlLabel control={<Switch {...field} checked={field.value} color="primary" />} label="Outros" />
               )}
             />
 
             <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
-              <Button
+            <Button
                 variant="contained"
                 sx={{ backgroundColor: "#D32F2F", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { backgroundColor: "#B71C1C" } }}
                 onClick={() => router.push("/home/answers")}
