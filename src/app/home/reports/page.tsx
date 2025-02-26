@@ -1,16 +1,36 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import { useEffect, useState } from "react";
-import { Box, Button, Card, CardActions, CardContent, CircularProgress, Typography } from "@mui/material";
+import { useState } from "react";
+import { Box, Button, Card, CardActions, CardContent, CircularProgress, Typography, Dialog, DialogTitle, DialogContent, DialogActions, FormControl, FormControlLabel, RadioGroup, Radio } from "@mui/material";
 import { useSnackbar } from "notistack";
 import fetchRequest from "@/utils/fetchRequest";
+import { useQuery } from "react-query";
+
+interface Answer {
+  id: number;
+  text: string;
+  other: boolean;
+  question_id: number;
+  question: {
+    id: number;
+    text: string;
+    user_group_id: number;
+  };
+}
 
 interface Orientation {
   id: number;
   text: string;
   value: number;
   answer_id: number;
+  answer: Answer;
+}
+
+interface ResponseOrientation {
+  response_id: number;
+  orientation_id: number;
+  orientation: Orientation;
 }
 
 interface UserGroup {
@@ -28,40 +48,25 @@ interface Response {
   id: number;
   timestamp: string;
   user_id: number;
-  orientations: Orientation[];
+  responseOrientations: ResponseOrientation[];
   user: User;
 }
 
 export default function Responses() {
-  const [responses, setResponses] = useState<Response[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [reportHtml, setReportHtml] = useState<string>('');
+  const [selectedResponse, setSelectedResponse] = useState<Response | null>(null);
+  const [reportHtml, setReportHtml] = useState<string>("");
   const { enqueueSnackbar } = useSnackbar();
 
-  useEffect(() => {
-    async function fetchResponses() {
-      try {
-        setLoading(true);
-        const response = await fetchRequest<null, Response[]>("/responses", {
-          method: "GET",
-        });
-        setResponses(response.body);
-        console.log(response)
-      } catch (error) {
-        enqueueSnackbar(
-          `Erro ao carregar respostas: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
-          { variant: "error" }
-        );
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchResponses();
-  }, []);
+  const { data: responses = [], isLoading } = useQuery<Response[]>({
+    queryKey: ["responses"],
+    queryFn: async () => {
+      const response = await fetchRequest<null, Response[]>("/responses", { method: "GET" });
+      return response.body;
+    },
+  });
 
   async function handleGenerateReport(id: number) {
     try {
-      setLoading(true);
       const response = await fetchRequest<null, string>(`/responses/${id}/report`, {
         method: "GET",
       });
@@ -71,9 +76,12 @@ export default function Responses() {
         `Erro ao gerar relatório: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
         { variant: "error" }
       );
-    } finally {
-      setLoading(false);
     }
+  }
+
+  function handleViewResponses(id: number) {
+    const response = responses.find(res => res.id === id) || null;
+    setSelectedResponse(response);
   }
 
   return (
@@ -81,7 +89,7 @@ export default function Responses() {
       <Typography variant="h4" component="h1" gutterBottom>
         Respostas
       </Typography>
-      {loading && (
+      {isLoading && (
         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 2 }}>
           <CircularProgress />
         </Box>
@@ -103,29 +111,25 @@ export default function Responses() {
                 Email: {response.user.email}
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                Grupos de Usuário: {response.user.user_groups.map(group => group.text).join(', ')}
+                Grupos de Usuário: {response.user.user_groups.map(group => group.text).join(", ")}
               </Typography>
-              {response.orientations.length > 0 && (
-                <Box sx={{ marginTop: 2 }}>
-                  <Typography variant="body2" color="textSecondary">
-                    Orientações:
-                  </Typography>
-                  {response.orientations.map((orientation) => (
-                    <Typography key={orientation.id} variant="body2" color="textSecondary">
-                      - {orientation.text} (Valor: {orientation.value})
-                    </Typography>
-                  ))}
-                </Box>
-              )}
             </CardContent>
             <CardActions>
               <Button
                 variant="contained"
                 color="primary"
                 onClick={() => handleGenerateReport(response.id)}
-                disabled={loading}
+                disabled={response.responseOrientations.length === 0}
               >
-                {loading ? <CircularProgress size={20} /> : "Gerar Relatório"}
+                Gerar Relatório
+              </Button>
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={() => handleViewResponses(response.id)}
+                disabled={response.responseOrientations.length === 0}
+              >
+                Ver Respostas
               </Button>
             </CardActions>
           </Card>
@@ -139,6 +143,37 @@ export default function Responses() {
           <Box dangerouslySetInnerHTML={{ __html: reportHtml }} />
         </Box>
       )}
+      <Dialog open={!!selectedResponse} onClose={() => setSelectedResponse(null)}>
+        <DialogTitle sx={{ color: "#7E57C2" }}>Respostas do Usuário</DialogTitle>
+        <DialogContent sx={{ width: "100%"}}>
+          {selectedResponse?.responseOrientations?.length ? (
+            selectedResponse.responseOrientations.map(({ orientation }) => (
+              <Box key={orientation.id} sx={{ marginBottom: 2 }}>
+                <Typography variant="h6">{orientation.answer.question.text}</Typography>
+                <FormControl component="fieldset">
+                  <RadioGroup value={orientation.answer.id}>
+                    <FormControlLabel
+                      value={orientation.answer.id}
+                      control={<Radio sx={{ color: "#7E57C2" }} />}
+                      label={orientation.answer.text}
+                    />
+                  </RadioGroup>
+                </FormControl>
+                <Typography variant="body2" color="textSecondary">
+                  Valor: {orientation.value}
+                </Typography>
+              </Box>
+            ))
+          ) : (
+            <Typography variant="body2">Nenhuma resposta disponível.</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSelectedResponse(null)} color="primary">
+            Fechar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
