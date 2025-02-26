@@ -13,20 +13,31 @@ import fetchRequest from "@/utils/fetchRequest";
 interface Question {
   id: number;
   text: string;
+  user_group: { id: number; text: string };
 }
 
 const schema = yup.object().shape({
   text: yup.string().trim().required("O texto da resposta é obrigatório"),
   question: yup
     .object()
-    .shape({ id: yup.number().required("A questão é obrigatório"), text: yup.string().required("A questão é obrigatório") })
-    .test("valid-question", "A questão é obrigatório", (value) => {
+    .shape({
+      id: yup.number().required("A questão é obrigatória"),
+      text: yup.string().required("A questão é obrigatória"),
+      user_group: yup
+        .object()
+        .shape({
+          text: yup.string(),
+        })
+        .nullable(),
+    })
+    .test("valid-question", "A questão é obrigatória", (value) => {
       return value && value.id !== 0 && value.text.trim() !== "";
     })
     .nullable()
     .required("A pergunta é obrigatória"),
   other: yup.boolean().required("O campo outros é obrigatório"),
 });
+
 
 export default function CreateAnswer() {
   const router = useRouter();
@@ -97,9 +108,11 @@ export default function CreateAnswer() {
                 <Autocomplete
                   {...field}
                   options={questions || []}
-                  getOptionLabel={(option) => option.text}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  onChange={(_, newValue) => field.onChange(newValue)}
+                  getOptionLabel={(option) => {
+                    if (!option || !option.text) return "";
+                    return `${option.text} ${option.user_group?.text ? "(" + option.user_group.text + ")" : ""}`;
+                  }}
+                                    onChange={(_, newValue) => field.onChange(newValue)}
                   renderInput={(params) => (
                     <TextField
                       {...params}
