@@ -15,6 +15,7 @@ interface User {
     id: number;
     text: string;
   }[];
+  name?: string;
 }
 
 export default function Users() {
@@ -84,7 +85,10 @@ export default function Users() {
           <Card key={user.id} variant="outlined" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 2 }}>
             <CardContent sx={{ flex: 1 }}>
               <Typography variant="h6" component="div">
-                {user.email}
+                {user.name ? user.name : "Sem nome"}
+              </Typography>
+              <Typography variant="body2" component="div">
+                Email: {user.email}
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Telefone: {user.phone_number}
