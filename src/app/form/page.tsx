@@ -140,9 +140,7 @@ export default function DynamicForm() {
       user_id: userId,
       other_answers: {},
     };
-  
-    console.log("Request Body:", JSON.stringify(requestBody, null, 2));
-  
+    
     try {
       await fetchRequest("/responses", {
         method: "POST",
