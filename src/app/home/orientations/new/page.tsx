@@ -58,6 +58,9 @@ const schema = yup.object().shape({
         }),
       }),
     })
+    .test("valid-question", "A questão é obrigatória", (value) => {
+      return value && value.id !== 0 && value.text.trim() !== "";
+    })
     .required("A resposta é obrigatória"),
 });
 
