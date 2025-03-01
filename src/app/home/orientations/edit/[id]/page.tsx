@@ -9,75 +9,120 @@ import { useForm, Controller } from "react-hook-form";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import fetchRequest from "@/utils/fetchRequest";
+import { useMemo, useEffect } from "react";
 
 interface Answer {
   id: number;
   text: string;
+  question: Question;
+}
+
+interface Question {
+  id: number;
+  text: string;
+  user_group: { text: string };
 }
 
 interface Orientation {
   id: number;
   text: string;
   value: number;
-  answer: Answer;
+  answer_id: number;
+  answer: {
+    id: number;
+    text: string;
+    other: boolean;
+    question_id: number;
+    question: {
+      id: number;
+      text: string;
+      user_group_id: number;
+      user_group: { id: number; text: string; description: string };
+    };
+  };
 }
 
 interface FormData {
   text: string;
   value: number;
   answer: Answer;
+  question: Question;
 }
 
 const schema = yup.object().shape({
   text: yup.string().trim().required("O texto da orientação é obrigatório"),
   value: yup.number().typeError("O peso deve ser um número").required("O peso da orientação é obrigatório"),
+  question: yup
+  .object()
+  .required("A questão é obrigatória")
+  .shape({
+    id: yup.number().required("A questão é obrigatória"),
+    text: yup.string().required("A questão é obrigatória"),
+    user_group: yup.object().shape({ text: yup.string().required("A questão é obrigatória") }),
+  })
+  .test("valid-question", "A questão é obrigatória", (value) => {
+    return value && value.id !== 0 && value.text.trim() !== "";
+  }),
   answer: yup
-    .object()
-    .shape({
-      id: yup.number().required(),
-      text: yup.string().required(),
-    })
-    .test("valid-answer", "A resposta é obrigatória", (value) => {
-      return value && value.id !== 0 && value.text.trim() !== "";
-    })
-    .required("A resposta é obrigatória"),
+  .object()
+  .required("A resposta é obrigatória")
+  .shape({
+    id: yup.number().required("A questão é obrigatória"),
+    text: yup.string().required("A questão é obrigatória"),
+    question: yup.object().shape({
+      id: yup.number().required("A questão é obrigatória"),
+      text: yup.string().required("A questão é obrigatória"),
+      user_group: yup.object().shape({ text: yup.string().required("A questão é obrigatória") }),
+    }),
+  })
+  .test("valid-answer", "A resposta é obrigatória", (value) => {
+    return value && value.id !== 0 && value.text.trim() !== "";
+  })
 });
-
 
 export default function EditOrientation() {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
   const { id }: any = useParams();
 
-  const { control, handleSubmit, getValues, setValue, formState: { errors } } = useForm<FormData>({
+  const { control, handleSubmit, setValue, getValues, watch, formState: { errors } } = useForm<FormData>({
     resolver: yupResolver(schema),
+    mode: "onChange",
+    reValidateMode: "onChange",
     defaultValues: {
       text: "",
-      answer: { id: 0, text: "" },
+      value: 0,
+      answer: { id: 0, text: "", question: { id: 0, text: "", user_group: { text: "" } } },
+      question: { id: 0, text: "", user_group: { text: "" }}
     },
   });
 
   const { data: orientationData, isLoading: isFetchingOrientation } = useQuery(
     ["orientation", id],
     async () => {
-      const response = await fetchRequest<null, Orientation>(
-        `/orientations/${id}`,
-        { method: "GET" }
-      );
-
-
-      setValue("text", response.body.text);
-      setValue("value", response.body.value);
-      setValue("answer", response.body.answer);
-
+      const response = await fetchRequest<null, Orientation>(`/orientations/${id}`, { method: "GET" });
       return response.body;
     },
     {
       enabled: !!id,
-      onError: (error: unknown) => {
+      onSuccess: (data) => {
+        setValue("text", data.text);
+        setValue("value", data.value);
+        setValue("answer", data.answer);
+        setValue("question", data.answer.question);
+      },
+      onError: (error) => {
         enqueueSnackbar(`Erro ao carregar a orientação: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
         router.push("/home/orientations");
       },
+    }
+  );
+
+  const { data: questions, isLoading: isFetchingQuestions } = useQuery(
+    "questions",
+    async () => {
+      const response = await fetchRequest<null, Question[]>("/questions", { method: "GET" });
+      return response.body;
     }
   );
 
@@ -86,19 +131,30 @@ export default function EditOrientation() {
     async () => {
       const response = await fetchRequest<null, Answer[]>("/answers", { method: "GET" });
       return response.body;
-    },
-    {
-      onError: (error: unknown) => {
-        enqueueSnackbar(`Erro ao carregar respostas: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
-      },
     }
   );
+
+  const selectedQuestion = watch("question");
+
+  const filteredAnswers = useMemo(() => (
+    selectedQuestion?.id ? answers?.filter(a => a.question?.id === selectedQuestion.id) : answers
+  ), [selectedQuestion, answers]);
+
+  useEffect(() => {
+    if (!selectedQuestion?.id) return;
+  
+    const possibleAnswers = answers?.filter(a => a.question?.id === selectedQuestion.id) || [];
+
+    const currentAnswer = getValues("answer");
+  
+    setValue("answer", possibleAnswers.length > 0 ? currentAnswer : { id: 0, text: "", question: selectedQuestion }, { shouldDirty: true });
+  }, [selectedQuestion, answers, setValue]);  
 
   const updateMutation = useMutation(
     async (data: FormData) => {
       await fetchRequest(`/orientations/${id}`, {
         method: "PUT",
-        body: { text: data.text, value: data.value, answer_id: data.answer?.id },
+        body: { text: data.text, value: data.value, answer_id: data.answer.id },
       });
     },
     {
@@ -106,17 +162,18 @@ export default function EditOrientation() {
         enqueueSnackbar("Orientação atualizada com sucesso!", { variant: "success" });
         router.push("/home/orientations");
       },
-      onError: (error: unknown) => {
+      onError: (error) => {
         enqueueSnackbar(`Erro ao atualizar a orientação: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
       },
     }
   );
 
   const onSubmit = (data: FormData) => {
+    console.log(data)
     updateMutation.mutate(data);
   };
 
-  if (isFetchingAnswers || isFetchingOrientation || getValues("answer.id") === 0) {
+  if (isFetchingOrientation || isFetchingAnswers || isFetchingQuestions || getValues("question.id") === 0 || getValues("answer.id") === 0) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
         <CircularProgress />
@@ -134,19 +191,32 @@ export default function EditOrientation() {
           Atualize os detalhes da orientação abaixo.
         </Typography>
         <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ display: "grid", gap: 2 }}>
-          <Controller
-            name="text"
-            control={control}
+          <Controller 
+            name="text" 
+            control={control} 
             render={({ field }) => (
-              <TextField {...field} label="Texto da Orientação" fullWidth variant="outlined" error={!!errors.text} helperText={errors.text?.message} />
+              <TextField {...field} label="Texto" fullWidth error={!!errors.text} helperText={errors.text?.message} />
             )}
           />
-
+          <Controller 
+            name="value" 
+            control={control} 
+            render={({ field }) => (
+              <TextField {...field} label="Peso" type="number" fullWidth error={!!errors.value} helperText={errors.value?.message} />
+            )} 
+          />
           <Controller
-            name="value"
+            name="question"
             control={control}
             render={({ field }) => (
-              <TextField {...field} label="Peso da Orientação" type="number" fullWidth variant="outlined" error={!!errors.value} helperText={errors.value?.message} />
+              <Autocomplete
+                {...field}
+                options={questions || []}
+                getOptionLabel={(option) => option?.text || ""}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                onChange={(_, newValue) => field.onChange(newValue || null)}
+                renderInput={(params) => <TextField {...params} label="Filtrar respostas a partir da Pergunta" error={!!errors.question} helperText={errors.question?.message} fullWidth />}
+              />
             )}
           />
 
@@ -156,34 +226,30 @@ export default function EditOrientation() {
             render={({ field }) => (
               <Autocomplete
                 {...field}
-                options={answers || []}
-                getOptionLabel={(option) => option.text}
+                options={filteredAnswers || []}
+                getOptionLabel={(option) => option?.text || ""}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
-                loading={isFetchingAnswers}
-                onChange={(_, newValue) => field.onChange(newValue)}
-                renderInput={(params) => (
-                  <TextField {...params} label="Selecionar Resposta" fullWidth error={!!errors.answer} helperText={errors.answer?.message} />
-                )}
+                onChange={(_, newValue) => field.onChange(newValue || null)}
+                renderInput={(params) => <TextField {...params} label="Resposta" error={!!errors.answer} helperText={errors.answer?.message} fullWidth />}
               />
             )}
           />
-
           <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
-          <Button
-                variant="contained"
-                sx={{ backgroundColor: "#D32F2F", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { backgroundColor: "#B71C1C" } }}
-                onClick={() => router.push("/home/orientations")}
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant="contained"
-                type="submit"
-                sx={{ background: "linear-gradient(135deg, #7E57C2, #5E3BEE)", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" } }}
-                disabled={updateMutation.isLoading}
-              >
-                {updateMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
-              </Button>
+            <Button
+              variant="contained"
+              sx={{ backgroundColor: "#D32F2F", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { backgroundColor: "#B71C1C" } }}
+              onClick={() => router.push("/home/orientations")}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="contained"
+              type="submit"
+              sx={{ background: "linear-gradient(135deg, #7E57C2, #5E3BEE)", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" } }}
+              disabled={updateMutation.isLoading}
+            >
+              {updateMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
+            </Button>
           </Box>
         </Box>
       </Paper>
