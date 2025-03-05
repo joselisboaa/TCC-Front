@@ -1,24 +1,27 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, CardActions, CardContent, Typography, CircularProgress, Box } from "@mui/material";
+import { Button, Card, CardActions, CardContent, Typography, CircularProgress, Box, Backdrop } from "@mui/material";
 import { useQuery, useMutation, useQueryClient } from "react-query";
 import { useSnackbar } from "notistack";
 import fetchRequest from "@/utils/fetchRequest";
+import DeleteConfirmationDialog from "@/components/DeleteDialog";
 
 interface UserGroup {
-  id: string;
+  id: number;
   text: string;
   description: string;
 }
 
 export default function UserGroups() {
-  const router = useRouter();
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
+  const [openDialog, setOpenDialog] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
-  const { data: userGroups, isLoading } = useQuery<UserGroup[]>(
-    "userGroups",
+  const { data: userGroups, isLoading: isLoadingUserGroups } = useQuery<UserGroup[]>(
+    "user-groups",
     async () => {
       const response = await fetchRequest<null, UserGroup[]>("/user-groups", {
         method: "GET",
@@ -29,7 +32,7 @@ export default function UserGroups() {
     {
       onError: (error: unknown) => {
         enqueueSnackbar(
-          `Erro ao carregar grupos: ${
+          `Erro ao carregar grupo de usuários: ${
             error instanceof Error ? error.message : "Erro desconhecido"
           }`,
           { variant: "error" }
@@ -38,32 +41,47 @@ export default function UserGroups() {
     }
   );
 
-  const deleteMutation = useMutation(
-    async (id: string) => {
+  const { isLoading: isLoadingDelete, mutate: deleteMutation } = useMutation(
+    async (id: number) => {
       await fetchRequest<null, null>(`/user-groups/${id}`, {
         method: "DELETE",
       });
     },
     {
       onSuccess: (_, id) => {
-        queryClient.setQueryData<UserGroup[]>("userGroups", (old) =>
-          (old || []).filter((group) => group.id !== id)
+        queryClient.setQueryData<UserGroup[]>("user-groups", (old) =>
+          (old || []).filter((user_group) => user_group.id !== id)
         );
-        enqueueSnackbar("Grupo excluído com sucesso!", { variant: "success" });
+        enqueueSnackbar("Resposta excluída com sucesso!", { variant: "success" });
       },
       onError: (error: unknown) => {
         const errorMessage =
           error instanceof Error
             ? error.message
-            : "Erro desconhecido ao excluir o grupo.";
+            : "Erro desconhecido ao excluir o grupo de usuário.";
       
         enqueueSnackbar(errorMessage, { variant: "error" });
       }      
     }
   );
+
+  const handleDeleteClick = (id: number) => {
+    setSelectedId(id);
+    setOpenDialog(true);
+  };
+
+  const confirmDelete = () => {
+    if (selectedId !== null) {
+      deleteMutation(selectedId);
+      setOpenDialog(false);
+    }
+  };
   
   return (
     <Box sx={{ padding: 4 }}>
+      <Backdrop open={isLoadingDelete} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+        <CircularProgress color="inherit" />
+      </Backdrop>
       <Typography variant="h4" component="h1" gutterBottom>
         Grupos de Usuários
       </Typography>
@@ -74,7 +92,7 @@ export default function UserGroups() {
       >
         Criar Novo Grupo
       </Button>
-      {isLoading && (
+      {isLoadingUserGroups && (
         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 2 }}>
           <CircularProgress />
         </Box>
@@ -106,15 +124,21 @@ export default function UserGroups() {
               <Button
                 variant="contained"
                 color="error"
-                onClick={() => deleteMutation.mutate(group.id)}
-                disabled={deleteMutation.isLoading}
+                onClick={() => handleDeleteClick(group.id)}
+                disabled={isLoadingDelete}
               >
-                {deleteMutation.isLoading ? <CircularProgress size={20} /> : "Excluir"}
+                {isLoadingDelete ? <CircularProgress size={20} /> : "Excluir"}
               </Button>
             </CardActions>
           </Card>
         ))}
       </Box>
+      <DeleteConfirmationDialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        onConfirm={confirmDelete}
+        entityName="Grupo de Usuário"
+      />
     </Box>
   );
 }
