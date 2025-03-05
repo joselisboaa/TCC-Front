@@ -1,11 +1,12 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, CardActions, CardContent, Typography, CircularProgress, Box } from "@mui/material";
+import { Button, Card, CardActions, CardContent, Typography, CircularProgress, Box, Backdrop } from "@mui/material";
+import { useQuery, useMutation, useQueryClient } from "react-query";
 import { useSnackbar } from "notistack";
 import fetchRequest from "@/utils/fetchRequest";
+import DeleteConfirmationDialog from "@/components/DeleteDialog";
 
 interface User {
   id: number;
@@ -19,48 +20,68 @@ interface User {
 }
 
 export default function Users() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
+  const [openDialog, setOpenDialog] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
-  useEffect(() => {
-    async function fetchUsers() {
-      try {
-        setLoading(true);
-        const response = await fetchRequest<null, User[]>("/users", {
-          method: "GET",
-        });
-        setUsers(response.body);
-      } catch (error) {
+  const { data: users, isLoading: isLoadingUsers } = useQuery<User[]>(
+    "users",
+    async () => {
+      const response = await fetchRequest<null, User[]>("/users", {
+        method: "GET",
+      });
+
+      return response.body;
+    },
+    {
+      onError: (error: unknown) => {
         enqueueSnackbar(
-          `Erro ao carregar usuários: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+          `Erro ao carregar usuários: ${
+            error instanceof Error ? error.message : "Erro desconhecido"
+          }`,
           { variant: "error" }
         );
-      } finally {
-        setLoading(false);
-      }
+      },
     }
-    fetchUsers();
-  }, []);
+  );
 
-  async function handleDelete(id: number) {
-    try {
-      setLoading(true);
+  const { isLoading: isLoadingDelete, mutate: deleteMutation } = useMutation(
+    async (id: number) => {
       await fetchRequest<null, null>(`/users/${id}`, {
         method: "DELETE",
       });
-      enqueueSnackbar("Usuário removido com sucesso!", { variant: "success" });
-      setUsers((prev) => prev.filter((user) => user.id !== id));
-    } catch (error) {
-      enqueueSnackbar(
-        `Erro ao excluir usuário: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
-        { variant: "error" }
-      );
-    } finally {
-      setLoading(false);
+    },
+    {
+      onSuccess: (_, id) => {
+        queryClient.setQueryData<User[]>("users", (old) =>
+          (old || []).filter((user) => user.id !== Number(id))
+        );
+        enqueueSnackbar("Usuário excluída com sucesso!", { variant: "success" });
+      },
+      onError: (error: unknown) => {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Erro desconhecido ao excluir a usuário.";
+      
+        enqueueSnackbar(errorMessage, { variant: "error" });
+      }      
     }
-  }
+  );
+
+  const handleDeleteClick = (id: number) => {
+    setSelectedId(id);
+    setOpenDialog(true);
+  };
+
+  const confirmDelete = () => {
+    if (selectedId !== null) {
+      deleteMutation(selectedId);
+      setOpenDialog(false);
+    }
+  };
 
   return (
     <Box sx={{ padding: 4 }}>
@@ -75,13 +96,13 @@ export default function Users() {
       >
         Criar Novo Usuário
       </Button>
-      {loading && (
+      {isLoadingUsers && (
         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 2 }}>
           <CircularProgress />
         </Box>
       )}
       <Box sx={{ display: "grid", gap: 2 }}>
-        {users.map((user) => (
+        {users?.map((user) => (
           <Card key={user.id} variant="outlined" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 2 }}>
             <CardContent sx={{ flex: 1 }}>
               <Typography variant="h6" component="div">
@@ -109,15 +130,21 @@ export default function Users() {
               <Button
                 variant="contained"
                 color="error"
-                onClick={() => handleDelete(user.id)}
-                disabled={loading}
+                onClick={() => handleDeleteClick(user.id)}
+                disabled={isLoadingDelete}
               >
-                {loading ? <CircularProgress size={20} /> : "Excluir"}
+                {isLoadingDelete ? <CircularProgress size={20} /> : "Excluir"}
               </Button>
             </CardActions>
           </Card>
         ))}
       </Box>
+      <DeleteConfirmationDialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        onConfirm={confirmDelete}
+        entityName="Usuário"
+      />
     </Box>
   );
 }
