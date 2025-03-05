@@ -1,15 +1,15 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, CardActions, CardContent, Typography, CircularProgress, Box } from "@mui/material";
+import { Button, Card, CardActions, CardContent, Typography, CircularProgress, Box, Backdrop } from "@mui/material";
+import { useQuery, useMutation, useQueryClient } from "react-query";
 import { useSnackbar } from "notistack";
 import fetchRequest from "@/utils/fetchRequest";
-import Cookies from "js-cookie";
+import DeleteConfirmationDialog from "@/components/DeleteDialog";
 
 interface Question {
-  id: string;
+  id: number;
   text: string;
   user_group: {
     id: number;
@@ -19,52 +19,74 @@ interface Question {
 }
 
 export default function Questions() {
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
+  const [openDialog, setOpenDialog] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
-  useEffect(() => {
-    async function fetchQuestions() {
-      try {
-        setLoading(true);
-        const response = await fetchRequest<null, Question[]>("/questions", {
-          method: "GET",
-        });
-        setQuestions(response.body);
-      } catch (error) {
-        enqueueSnackbar(
-          `Erro ao carregar questões: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
-          { variant: "error" }
-        );
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchQuestions();
-  }, []);
-
-  async function handleDelete(id: string) {
-    try {
-      setLoading(true);
-      await fetchRequest<null, null>(`/questions/${id}`, {
-        method: "DELETE",
+  const { data: questions, isLoading: isLoadingQuestions } = useQuery<Question[]>(
+    "questions",
+    async () => {
+      const response = await fetchRequest<null, Question[]>("/questions", {
+        method: "GET",
       });
 
-      enqueueSnackbar("Questão removida com sucesso!", { variant: "success" });
-      setQuestions((prev) => prev.filter((question) => question.id !== id));
-    } catch (error) {
-      enqueueSnackbar(
-        `Erro ao excluir questão: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
-        { variant: "error" }
-      );
-    } finally {
-      setLoading(false);
+      return response.body;
+    },
+    {
+      onError: (error: unknown) => {
+        enqueueSnackbar(
+          `Erro ao carregar questões: ${
+            error instanceof Error ? error.message : "Erro desconhecido"
+          }`,
+          { variant: "error" }
+        );
+      },
     }
-  }
+  );
+
+  const { isLoading: isLoadingDelete, mutate: deleteMutation } = useMutation(
+    async (id: number) => {
+      await fetchRequest<null, Question>(`/questions/${id}`, {
+        method: "DELETE",
+      });
+    },
+    {
+      onSuccess: (_, id) => {
+        queryClient.setQueryData<Question[]>("questions", (old) =>
+          (old || []).filter((question) => question.id !== id)
+        );
+        enqueueSnackbar("Questão excluída com sucesso!", { variant: "success" });
+      },
+      onError: (error: unknown) => {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Erro desconhecido ao excluir a questão.";
+      
+        enqueueSnackbar(errorMessage, { variant: "error" });
+      }
+    }
+  );
+
+  const handleDeleteClick = (id: number) => {
+    setSelectedId(id);
+    setOpenDialog(true);
+  };
+
+  const confirmDelete = () => {
+    if (selectedId !== null) {
+      deleteMutation(selectedId);
+      setOpenDialog(false);
+    }
+  };
 
   return (
     <Box sx={{ padding: 4 }}>
+      <Backdrop open={isLoadingDelete} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+        <CircularProgress color="inherit" />
+      </Backdrop>
       <Typography variant="h4" component="h1" gutterBottom>
         Questões
       </Typography>
@@ -76,13 +98,13 @@ export default function Questions() {
       >
         Criar Nova Questão
       </Button>
-      {loading && (
+      {isLoadingQuestions && (
         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 2 }}>
           <CircularProgress />
         </Box>
       )}
       <Box sx={{ display: "grid", gap: 2 }}>
-        {questions.map((question) => (
+        {questions?.map((question) => (
           <Card key={question.id} variant="outlined" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 2 }}>
             <CardContent sx={{ flex: 1 }}>
               <Typography variant="h6" component="div">
@@ -104,15 +126,21 @@ export default function Questions() {
               <Button
                 variant="contained"
                 color="error"
-                onClick={() => handleDelete(question.id)}
-                disabled={loading}
+                onClick={() => handleDeleteClick(question.id)}
+                disabled={isLoadingQuestions}
               >
-                {loading ? <CircularProgress size={20} /> : "Excluir"}
+                {isLoadingQuestions ? <CircularProgress size={20} /> : "Excluir"}
               </Button>
             </CardActions>
           </Card>
         ))}
       </Box>
+      <DeleteConfirmationDialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        onConfirm={confirmDelete}
+        entityName="Questão"
+      />
     </Box>
   );
 }
