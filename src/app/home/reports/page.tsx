@@ -2,10 +2,11 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Button, Card, CardActions, CardContent, CircularProgress, Typography, Dialog, DialogTitle, DialogContent, DialogActions, FormControl, FormControlLabel, RadioGroup, Radio } from "@mui/material";
+import { Box, Button, Card, CardActions, CardContent, CircularProgress, Typography, Backdrop } from "@mui/material";
 import { useSnackbar } from "notistack";
 import fetchRequest from "@/utils/fetchRequest";
-import { useQuery } from "react-query";
+import { useQuery, useMutation } from "react-query";
+import ReportDialog from "@/components/ReportDialog";
 
 interface Answer {
   id: number;
@@ -44,6 +45,22 @@ interface User {
   user_groups: UserGroup[];
 }
 
+interface Question {
+  text: string;
+  answer: string;
+}
+
+interface reportOrientation {
+  questions: Question[];
+  value: number;
+}
+
+interface ReportData {
+  id: number;
+  timestamp: string;
+  orientations: Record<string, reportOrientation>;
+}
+
 interface Response {
   id: number;
   timestamp: string;
@@ -53,8 +70,8 @@ interface Response {
 }
 
 export default function Responses() {
-  const [selectedResponse, setSelectedResponse] = useState<Response | null>(null);
-  const [reportHtml, setReportHtml] = useState<string>("");
+  const [jsonData, setJsonData] = useState<ReportData | null>(null);
+  const [loadingReportId, setLoadingReportId] = useState<number | null>(null);
   const { enqueueSnackbar } = useSnackbar();
 
   const { data: responses = [], isLoading } = useQuery<Response[]>({
@@ -65,29 +82,35 @@ export default function Responses() {
     },
   });
 
-  async function handleGenerateReport(id: number) {
-    try {
-      const response = await fetchRequest<null, string>(`/responses/${id}/report`, {
+  const { mutate: handleGenerateReport, isLoading: isResponseLoading } = useMutation(
+    async (id: number) => {
+      setLoadingReportId(id);
+      const response = await fetchRequest<null, ReportData>(`/responses/${id}/report`, {
         method: "GET",
       });
-      setReportHtml(response.body);
-    } catch (error) {
-      enqueueSnackbar(
-        `Erro ao gerar relatório: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
-        { variant: "error" }
-      );
+      return response.body;
+    },
+    {
+      onSuccess: (data) => {
+        setJsonData(data);
+      },
+      onError: (error) => {
+        console.error(error);
+        enqueueSnackbar(
+          `Erro ao gerar relatório: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+          { variant: "error" }
+        );
+      },
     }
-  }
-
-  function handleViewResponses(id: number) {
-    const response = responses.find(res => res.id === id) || null;
-    setSelectedResponse(response);
-  }
+  );  
 
   return (
     <Box sx={{ padding: 4 }}>
+      <Backdrop open={isResponseLoading} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+        <CircularProgress color="inherit" />
+      </Backdrop>
       <Typography variant="h4" component="h1" gutterBottom>
-        Respostas
+        Relatórios dos Usuários
       </Typography>
       {isLoading && (
         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 2 }}>
@@ -117,63 +140,20 @@ export default function Responses() {
             <CardActions>
               <Button
                 variant="contained"
-                color="primary"
-                onClick={() => handleGenerateReport(response.id)}
-                disabled={response.responseOrientations.length === 0}
-              >
-                Gerar Relatório
-              </Button>
-              <Button
-                variant="contained"
                 color="secondary"
-                onClick={() => handleViewResponses(response.id)}
-                disabled={response.responseOrientations.length === 0}
+                onClick={() => handleGenerateReport(response.id)}
+                disabled={response.responseOrientations.length === 0 || loadingReportId === response.id}
               >
-                Ver Respostas
+                {loadingReportId === response.id ? <CircularProgress size={25} sx={{ color: "#FFF", marginInline: "4.5rem" }} /> : "Visualizar Relatório"}              
               </Button>
             </CardActions>
           </Card>
         ))}
       </Box>
-      {reportHtml && (
-        <Box sx={{ marginTop: 4 }}>
-          <Typography variant="h5" component="h2" gutterBottom>
-            Relatório Gerado
-          </Typography>
-          <Box dangerouslySetInnerHTML={{ __html: reportHtml }} />
-        </Box>
-      )}
-      <Dialog open={!!selectedResponse} onClose={() => setSelectedResponse(null)}>
-        <DialogTitle sx={{ color: "#7E57C2" }}>Respostas do Usuário</DialogTitle>
-        <DialogContent sx={{ width: "100%"}}>
-          {selectedResponse?.responseOrientations?.length ? (
-            selectedResponse.responseOrientations.map(({ orientation }) => (
-              <Box key={orientation.id} sx={{ marginBottom: 2 }}>
-                <Typography variant="h6">{orientation.answer.question.text}</Typography>
-                <FormControl component="fieldset">
-                  <RadioGroup value={orientation.answer.id}>
-                    <FormControlLabel
-                      value={orientation.answer.id}
-                      control={<Radio sx={{ color: "#7E57C2" }} />}
-                      label={orientation.answer.text}
-                    />
-                  </RadioGroup>
-                </FormControl>
-                <Typography variant="body2" color="textSecondary">
-                  Valor: {orientation.value}
-                </Typography>
-              </Box>
-            ))
-          ) : (
-            <Typography variant="body2">Nenhuma resposta disponível.</Typography>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSelectedResponse(null)} color="primary">
-            Fechar
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ReportDialog open={jsonData !== null} jsonData={jsonData} onClose={() => {
+        setJsonData(null);
+        setLoadingReportId(null); 
+      }} />
     </Box>
   );
 }
