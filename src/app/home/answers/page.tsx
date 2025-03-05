@@ -1,14 +1,15 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, CardActions, CardContent, Typography, CircularProgress, Box } from "@mui/material";
+import { Button, Card, CardActions, CardContent, Typography, CircularProgress, Box, Backdrop } from "@mui/material";
+import { useQuery, useMutation, useQueryClient } from "react-query";
 import { useSnackbar } from "notistack";
 import fetchRequest from "@/utils/fetchRequest";
+import DeleteConfirmationDialog from "@/components/DeleteDialog";
 
 interface Answer {
-  id: string;
+  id: number;
   text: string;
   question: {
     id: number;
@@ -23,52 +24,74 @@ interface Answer {
 }
 
 export default function Answers() {
-  const [answers, setAnswers] = useState<Answer[]>([]);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
+  const [openDialog, setOpenDialog] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
-  useEffect(() => {
-    async function fetchAnswers() {
-      try {
-        setLoading(true);
-        const response = await fetchRequest<null, Answer[]>("/answers", {
-          method: "GET",
-        });
-        setAnswers(response.body);
-      } catch (error) {
+  const { data: answers, isLoading: isLoadingAnswers } = useQuery<Answer[]>(
+    "answers",
+    async () => {
+      const response = await fetchRequest<null, Answer[]>("/answers", {
+        method: "GET",
+      });
+
+      return response.body;
+    },
+    {
+      onError: (error: unknown) => {
         enqueueSnackbar(
-          `Erro ao carregar respostas: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+          `Erro ao carregar respostas: ${
+            error instanceof Error ? error.message : "Erro desconhecido"
+          }`,
           { variant: "error" }
         );
-      } finally {
-        setLoading(false);
-      }
+      },
     }
-    fetchAnswers();
-  }, []);
+  );
 
-  async function handleDelete(id: string) {
-    try {
-      setLoading(true);
+  const { isLoading: isLoadingDelete, mutate: deleteMutation } = useMutation(
+    async (id: number) => {
       await fetchRequest<null, null>(`/answers/${id}`, {
         method: "DELETE",
       });
-
-      enqueueSnackbar("Resposta removida com sucesso!", { variant: "success" });
-      setAnswers((prev) => prev.filter((answer) => answer.id !== id));
-    } catch (error) {
-      enqueueSnackbar(
-        `Erro ao excluir resposta: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
-        { variant: "error" }
-      );
-    } finally {
-      setLoading(false);
+    },
+    {
+      onSuccess: (_, id) => {
+        queryClient.setQueryData<Answer[]>("answers", (old) =>
+          (old || []).filter((answer) => answer.id !== Number(id))
+        );
+        enqueueSnackbar("Resposta excluída com sucesso!", { variant: "success" });
+      },
+      onError: (error: unknown) => {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Erro desconhecido ao excluir a resposta.";
+      
+        enqueueSnackbar(errorMessage, { variant: "error" });
+      }      
     }
-  }
+  );
+
+  const handleDeleteClick = (id: number) => {
+    setSelectedId(id);
+    setOpenDialog(true);
+  };
+
+  const confirmDelete = () => {
+    if (selectedId !== null) {
+      deleteMutation(selectedId);
+      setOpenDialog(false);
+    }
+  };
 
   return (
     <Box sx={{ padding: 4 }}>
+      <Backdrop open={isLoadingDelete} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+        <CircularProgress color="inherit" />
+      </Backdrop>
       <Typography variant="h4" component="h1" gutterBottom>
         Respostas
       </Typography>
@@ -80,13 +103,13 @@ export default function Answers() {
       >
         Criar Nova Resposta
       </Button>
-      {loading && (
+      {isLoadingAnswers && (
         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 2 }}>
           <CircularProgress />
         </Box>
       )}
       <Box sx={{ display: "grid", gap: 2 }}>
-        {answers.map((answer) => (
+        {answers?.map((answer) => (
           <Card key={answer.id} variant="outlined" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 2 }}>
             <CardContent sx={{ flex: 1 }}>
               <Typography variant="h6" component="div">
@@ -111,15 +134,21 @@ export default function Answers() {
               <Button
                 variant="contained"
                 color="error"
-                onClick={() => handleDelete(answer.id)}
-                disabled={loading}
+                onClick={() => handleDeleteClick(answer.id)}
+                disabled={isLoadingDelete}
               >
-                {loading ? <CircularProgress size={20} /> : "Excluir"}
+                {isLoadingAnswers ? <CircularProgress size={20} /> : "Excluir"}
               </Button>
             </CardActions>
           </Card>
         ))}
       </Box>
+      <DeleteConfirmationDialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        onConfirm={confirmDelete}
+        entityName="Resposta"
+      />
     </Box>
   );
 }
