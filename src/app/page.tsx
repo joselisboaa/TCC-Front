@@ -6,19 +6,32 @@ import Image from "next/image";
 import Cookies from "js-cookie";
 import fetchRequest from "../utils/fetchRequest";
 import useVerifyAuth from "@/utils/hooks/useVerifyAuth";
+import { Backdrop, CircularProgress, Button, Paper, Typography } from "@mui/material";
+
 
 const SearchHandler = ({ router }: { router: ReturnType<typeof useRouter> }) => {
   const searchParams = useSearchParams() as ReadonlyURLSearchParams;
   const search = searchParams.get("code");
+  const [loadingJWT, setLoadingJWT] = useState(false);
 
   useEffect(() => {
     if (search) {
+      setLoadingJWT(true);
       Cookies.set("jwt", search);
+    }
+  }, [search]);
+
+  useEffect(() => {
+    if (loadingJWT) {
       router.push("/home");
     }
-  }, [search, router]);
+  }, [loadingJWT, router]);
 
-  return null;
+  return (
+    <Backdrop open={loadingJWT} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+      <CircularProgress color="inherit" />
+    </Backdrop>
+  );
 };
 
 const LoginPage = () => {
@@ -65,42 +78,70 @@ const LoginPage = () => {
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-gray-100">
-      <div className="flex flex-col items-center bg-white p-8 rounded-lg shadow-lg text-center w-full max-w-4xl h-full min-h-screen md:min-h-0 md:h-auto">
-        <Suspense fallback={<div>Carregando...</div>}>
+      <Paper className="flex flex-col items-center p-8 rounded-lg shadow-lg text-center w-full max-w-4xl h-full min-h-screen md:min-h-0 md:h-auto">
+        <Suspense fallback={
+          <Backdrop open={isVerifying} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+            <CircularProgress color="inherit" />
+          </Backdrop>
+        }>
           <SearchHandler router={router} />
         </Suspense>
 
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-main_theme mb-4">
+        <Typography variant="h4" component="h1" className="mb-4 text-main_theme">
           Mapeamento de Acessibilidade
-        </h1>
-        <p className="text-sm sm:text-base lg:text-lg text-gray-600 mb-8">
+        </Typography>
+        <Typography variant="body1" className="mb-8 text-gray-600">
           A acessibilidade é a chave para abrir as portas da oportunidade.
-        </p>
+        </Typography>
 
         {errorMessage && (
-          <p className="text-red-500 mb-4 text-sm sm:text-base">{errorMessage}</p>
+          <Typography color="error" className="mb-4">
+            {errorMessage}
+          </Typography>
         )}
-
-        <button
+        <Button
+          variant="outlined"
           onClick={handleGoogleLogin}
-          className={`flex items-center justify-center py-3 px-6 border border-gray-300 rounded-md shadow-sm text-sm sm:text-base lg:text-lg font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition duration-150 ${
-            loading ? "opacity-50 cursor-not-allowed" : ""
-          }`}
           disabled={loading}
-        >
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '10px 24px',
+            border: '1px solid #dadce0',
+            borderRadius: '4px', 
+            boxShadow: 'none', 
+            fontSize: '16px', 
+            fontWeight: 500, 
+            color: '#3c4043', 
+            backgroundColor: '#ffffff', 
+            textTransform: 'none', 
+            '&:hover': {
+              backgroundColor: '#f8f9fa', 
+              boxShadow: 'none', 
+            },
+            '&:focus': {
+              outline: 'none', 
+            },
+            transition: 'background-color 150ms ease',
+            opacity: loading ? 0.5 : 1,
+            cursor: loading ? 'not-allowed' : 'pointer',
+            minWidth: '120px', 
+          }}
+          >
           {loading ? (
-            <span>Carregando...</span>
+            <CircularProgress size={18} color="inherit" />
           ) : (
             <>
               <img
                 src="https://developers.google.com/identity/images/g-logo.png"
                 alt="Google Logo"
-                className="w-5 h-5 sm:w-6 sm:h-6 mr-2"
+                style={{ width: '18px', height: '18px', marginRight: '8px' }} // Estilo do ícone
               />
               Entrar com Google
             </>
           )}
-        </button>
+        </Button>
         <Image
           width={800}
           height={600}
@@ -108,7 +149,7 @@ const LoginPage = () => {
           alt="People Illustration"
           className="mt-8 w-full max-w-lg h-auto object-contain"
         />
-      </div>
+      </Paper>
     </div>
   );
 };
