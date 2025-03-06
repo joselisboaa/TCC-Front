@@ -47,6 +47,7 @@ interface User {
 interface Question {
   text: string;
   answer: string;
+  orientation: string;
 }
 
 interface reportOrientation {
@@ -71,6 +72,7 @@ interface Response {
 export default function Responses() {
   const [jsonData, setJsonData] = useState<ReportData | null>(null);
   const [loadingReportId, setLoadingReportId] = useState<number | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
   const { enqueueSnackbar } = useSnackbar();
 
   const { data: responses = [], isLoading } = useQuery<Response[]>({
@@ -94,7 +96,6 @@ export default function Responses() {
         setJsonData(data);
       },
       onError: (error) => {
-        console.error(error);
         enqueueSnackbar(
           `Erro ao gerar relatório: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
           { variant: "error" }
@@ -140,7 +141,10 @@ export default function Responses() {
               <Button
                 variant="contained"
                 color="secondary"
-                onClick={() => handleGenerateReport(response.id)}
+                onClick={() => {
+                  handleGenerateReport(response.id);
+                  setUsername(response.user.name);
+                }}
                 disabled={response.responseOrientations.length === 0 || loadingReportId === response.id}
               >
                 {loadingReportId === response.id ? <CircularProgress size={25} sx={{ color: "#FFF", marginInline: "4.5rem" }} /> : "Visualizar Relatório"}              
@@ -152,7 +156,7 @@ export default function Responses() {
       <ReportDialog open={jsonData !== null} jsonData={jsonData} onClose={() => {
         setJsonData(null);
         setLoadingReportId(null); 
-      }} />
+      }} username={username} />
     </Box>
   );
 }
