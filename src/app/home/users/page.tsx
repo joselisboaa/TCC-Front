@@ -85,6 +85,9 @@ export default function Users() {
 
   return (
     <Box sx={{ padding: 4 }}>
+      <Backdrop open={isLoadingDelete} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+        <CircularProgress color="inherit" />
+      </Backdrop>
       <Typography variant="h4" component="h1" gutterBottom>
         Usuários
       </Typography>
