@@ -10,6 +10,7 @@ import html2canvas from "html2canvas";
 interface Question {
   text: string;
   answer: string;
+  orientation: string;
 }
 
 interface Orientation {
@@ -27,9 +28,10 @@ interface ReportDialogProps {
   open: boolean;
   onClose: () => void;
   jsonData: ReportData | null;
+  username: string | null;
 }
 
-export default function ReportDialog({ open, onClose, jsonData }: ReportDialogProps) {
+export default function ReportDialog({ open, onClose, jsonData, username }: ReportDialogProps) {
   const pdfRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
 
@@ -58,6 +60,12 @@ export default function ReportDialog({ open, onClose, jsonData }: ReportDialogPr
     setLoading(false);
   };
 
+  const getMarkerColor = (value: number) => {
+    if (value >= 0 && value < 20) return "green"; 
+    if (value >= 20 && value <= 30) return "yellow";
+    return "red"; 
+  };
+
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
       <DialogTitle sx={{ color: "#7E57C2" }}>Relatório de Respostas</DialogTitle>
@@ -65,13 +73,28 @@ export default function ReportDialog({ open, onClose, jsonData }: ReportDialogPr
         <Box ref={pdfRef} sx={{ p: 2 }}>
           {jsonData ? (
             <>
-              <Typography variant="h6" sx={{ color: "#7E57C2" }}>
-                Data: {new Date(jsonData.timestamp).toLocaleString()}
+              <Typography variant="h6">
+                Data de envio: {new Date(jsonData.timestamp).toLocaleString()}
+              </Typography>
+
+              <Typography variant="h6">
+                Nome: {username ? username : "Usuário não identificado"}
               </Typography>
 
               {Object.entries(jsonData.orientations || {}).map(([key, orientation], index) => (
                 <Box key={index} sx={{ mt: 2, mb: 2 }}>
-                  <Typography variant="h6">Grupo de Usuário: <strong>{key}</strong></Typography>
+                  <Box sx={{ display: "flex", alignItems: "center" }}>
+                    <Typography variant="h6">Grupo de Usuário: <strong>{key}</strong></Typography>
+                    <Box
+                      sx={{
+                        width: "100px",
+                        height: "25px",
+                        backgroundColor: getMarkerColor(orientation.value),
+                        marginLeft: "10px",
+                        borderRadius: "5px"
+                      }}
+                    />
+                  </Box>
                   {orientation.questions.map((question, questionIndex) => (
                     <Card key={questionIndex} variant="outlined" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 2, marginBlock: 2 }}>
                       <FormControl component="fieldset">
@@ -90,6 +113,9 @@ export default function ReportDialog({ open, onClose, jsonData }: ReportDialogPr
                   ))}
                   <Typography variant="body2" color="textSecondary">
                     Peso da Orientação: {orientation.value}
+                  </Typography>
+                  <Typography variant="h6">
+                    Orientação: {orientation.questions[index].orientation}
                   </Typography>
                 </Box>
               ))}
