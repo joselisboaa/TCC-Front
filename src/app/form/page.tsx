@@ -1,12 +1,28 @@
 "use client";
-import fetchRequest from "@/utils/fetchRequest";
-import { useEffect, useState } from "react";
-import { 
-  Container, Paper, Typography, FormControl, FormControlLabel, 
-  RadioGroup, Radio, Button, CircularProgress, TextField
+
+import { useForm, Controller } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
+import {
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  TextField,
+  Button,
+  CircularProgress,
+  Typography,
+  FormControl,
+  Container,
+  Paper,
+  Box,
+  FormHelperText,
 } from "@mui/material";
+import fetchRequest from "@/utils/fetchRequest";
+import { useQuery, useMutation } from "react-query";
 import Cookies from "js-cookie";
 import { jwtVerify } from "jose";
+import { useSnackbar } from "notistack";
+
 
 interface Answer {
   id: number;
@@ -22,166 +38,191 @@ interface Question {
   answers: Answer[];
 }
 
+interface FormValues {
+  answers: {
+    question_id: number;
+    answer_id: number;
+    other_text?: string | null;
+  }[];
+}
+
 interface User {
   id: number;
   phone_number: string;
   email: string;
   password: string;
   user_groups: { id: number; text: string; description: string }[];
-};
+}
 
-export default function DynamicForm() {
-  const [formData, setFormData] = useState<Question[]>([]);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, Answer | null>>({});
-  const [otherResponses, setOtherResponses] = useState<Record<number, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [userId, setUserId] = useState<number | null>(null);
+const responseSchema = yup.object().shape({
+  answers: yup
+    .array()
+    .of(
+      yup.object().shape({
+        question_id: yup.number().required("ID da pergunta é obrigatório"),
+        answer_id: yup.number().required("ID da resposta é obrigatória"),
+        other_text: yup.string().nullable(),
+      })
+    )
+    .min(1, "Pelo menos uma resposta é obrigatória")
+    .required("Pelo menos uma resposta é obrigatória"),
+});
 
-  useEffect(() => {
-    async function getUserIdFromToken() {
-      const token = Cookies.get("jwt");
-      if (!token) return;
 
-      try {
-        const secret = new TextEncoder().encode(process.env.NEXT_PUBLIC_JWT_SECRET);
-        const { payload } = await jwtVerify(token, secret);
+async function getUserIdFromToken(): Promise<number | null> {
+  const token = Cookies.get("jwt");
+  if (!token) return null;
 
-        const user = payload.user as User;
+  try {
+    const secret = new TextEncoder().encode(process.env.NEXT_PUBLIC_JWT_SECRET);
+    const { payload } = await jwtVerify(token, secret);
 
-        setUserId(user.id);
-      } catch (error) {
-        console.error("Erro ao validar JWT:", error);
+    const user = payload.user as User;
+    return user.id;
+  } catch (error) {
+    console.error("Erro ao validar JWT:", error);
+    throw new Error("Falha ao validar o token JWT");
+  }
+}
+
+function useUserId() {
+  return useQuery<number | null, Error>("userId", getUserIdFromToken, {
+    retry: false,
+    staleTime: Infinity,
+  });
+}
+
+export default function QuestionForm() {
+  const { enqueueSnackbar } = useSnackbar();
+  
+  const { control, handleSubmit, reset, formState: { errors }, watch } = useForm<FormValues>({
+    resolver: yupResolver(responseSchema),
+    defaultValues: {
+      answers: [],
+    },
+  });
+  
+  const { data: userId, isLoading: isUserIdLoading, error: userIdError } = useUserId();
+  
+  const { data: formData, isLoading: isFormDataLoading, error: formDataError } = useQuery<Question[], Error>(
+    ["formData", userId],
+    async () => {
+      if (!userId) throw new Error("ID do usuário não fornecido");
+      
+      const res = await fetchRequest<any, { body: Question[] }>(`/users/${userId}/form`);
+      if (!Array.isArray(res.body)) {
+        throw new Error("Dados do formulário inválidos");
       }
+      return res.body;
+    },
+    {
+      enabled: !!userId,
+      onError: (error) => {
+        enqueueSnackbar(`Erro ao carregar formulário: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
+      },
     }
-
-    getUserIdFromToken();
-  }, []);
-
-  useEffect(() => {
-    async function fetchData() {
-      if (!userId) return;
-
-      try {
-        const res = await fetchRequest<any, { body: Question[] }>(`/users/${userId}/form`);
-        
-        if (Array.isArray(res.body)) {
-          setFormData(res.body);
-
-          const initialAnswers: Record<number, Answer | null> = {};
-          res.body.forEach((question) => {
-            initialAnswers[question.id] = null;
-          });
-          setSelectedAnswers(initialAnswers);
-        } else {
-          setFormData([]);
-        }
-      } catch (error) {
-        console.error("Erro ao carregar o formulário:", error);
-        setFormData([]);
-      } finally {
-        setLoading(false);
-      }
-    }      
-
-    fetchData();
-  }, [userId]);
-
-  const handleAnswerChange = (questionId: number, answer: Answer) => {
-    setSelectedAnswers((prev) => ({
-      ...prev,
-      [questionId]: answer,
-    }));
-
-    if (answer.other) {
-      setOtherResponses((prev) => ({
-        ...prev,
-        [answer.id]: "",
-      }));
-    } else {
-      setOtherResponses((prev) => {
-        const updated = { ...prev };
-        delete updated[answer.id];
-        return updated;
-      });
-    }
-  };
-
-  const handleOtherTextChange = (answerId: number, text: string) => {
-    setOtherResponses((prev) => ({
-      ...prev,
-      [answerId]: text,
-    }));
-  };
-
+  );
+  
   const handleClear = () => {
-    setSelectedAnswers({});
-    setOtherResponses({});
+    reset({
+      answers: [],
+    });
   };
 
+  const submitMutation = useMutation(
+    async (data: FormValues) => {
+      if (!userId) throw new Error("ID do usuário não encontrado");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-  
-    if (Object.values(selectedAnswers).some((answer) => answer === null)) {
-      alert("Por favor, responda todas as perguntas.");
-      setSubmitting(false);
-      return;
-    }
-  
-    const requestBody = {
-      answers: Object.values(selectedAnswers).map((answer) => ({
-        id: answer!.id,
-        text: answer!.text,
-        other: answer!.other,
-        question_id: formData.find(q => q.answers.some(a => a.id === answer!.id))?.id || null,
-      })),
-      user_id: userId,
-      other_answers: {},
-    };
-    
-    try {
+      const requestBody = {
+        answers: Object.entries(data.answers).map(([questionId, answer]) => ({
+          id: answer.answer_id,
+          text: formData
+            ?.find((q) => q.id === Number(questionId))
+            ?.answers.find((a) => a.id === answer.answer_id)?.text || "",
+          other: formData
+            ?.find((q) => q.id === Number(questionId))
+            ?.answers.find((a) => a.id === answer.answer_id)?.other || false,
+          question_id: Number(questionId),
+        })),
+        user_id: userId,
+        other_answers: Object.fromEntries(
+          Object.entries(data.answers)
+            .filter(([_, answer]) => answer.other_text)
+            .map(([questionId, answer]) => [questionId, answer.other_text || ""])
+        ),
+      };
+
       await fetchRequest("/responses", {
         method: "POST",
         body: requestBody,
       });
-      alert("Respostas enviadas com sucesso!");
-    } catch (error) {
-      alert("Erro ao enviar respostas.");
-      console.error("Erro ao enviar respostas:", error);
-    } finally {
-      setSubmitting(false);
+    },
+    {
+      onSuccess: () => {
+        alert("Respostas enviadas com sucesso!");
+      },
+      onError: (error) => {
+        enqueueSnackbar(`Erro ao enviar respostas: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
+      },
     }
+  );
+
+  const onSubmit = (data: FormValues) => {
+    submitMutation.mutate(data);
   };
-  
+
+  if (isUserIdLoading || isFormDataLoading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: 250 }}>
+        <CircularProgress />
+      </Box>
+    )
+  }
+
+  if (userIdError) {
+    return <Typography color="error">Erro ao validar o token: {userIdError.message}</Typography>;
+  }
+
+  if (formDataError) {
+    return <Typography color="error">Erro ao carregar o formulário: {formDataError.message}</Typography>;
+  }
+
+  if (!formData || formData.length === 0) {
+    return <Typography color="error">Nenhum dado encontrado.</Typography>;
+  }
+
+
   return (
     <Container maxWidth="sm" className="flex items-center justify-center h-fit">
       <Paper elevation={3} className="p-6 w-full">
-        {loading ? (
-          <div className="flex justify-center">
-            <CircularProgress color="secondary" />
-          </div>
-        ) : formData.length > 0 ? (
-          <form onSubmit={handleSubmit}>
-            <Typography id="form-title" variant="h5" className="mb-5" gutterBottom>
-              Questionário
-            </Typography>
-            {formData.map((question) => (
-              <div key={question.id} className="mb-4">
-                <Typography variant="h6" gutterBottom>
-                  {question.text}
-                </Typography>
-                <FormControl component="fieldset">
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <Typography id="form-title" variant="h5" className="mb-5" gutterBottom>
+            Questionário
+          </Typography>
+          {formData.map((question, questionIndex) => (
+            <div key={question.id} className="mb-4">
+              <Typography variant="h6" gutterBottom>
+                {question.text}
+              </Typography>
+              <FormControl component="fieldset" error={!!errors.answers?.[questionIndex]?.answer_id}>
+              <Controller
+                name={`answers`}
+                control={control}
+                render={({ field }) => (
                   <RadioGroup
-                    value={selectedAnswers[question.id]?.id ?? ""}
+                    value={field.value.find((a) => a.question_id === question.id)?.answer_id || ""}
                     onChange={(e) => {
-                      const selectedAnswer = question.answers.find(
-                        (a) => a.id === Number(e.target.value)
-                      );
-                      if (selectedAnswer) {
-                        handleAnswerChange(question.id, selectedAnswer);
-                      }
+                      const selectedAnswerId = Number(e.target.value);
+                      const selectedAnswer = question.answers.find((a) => a.id === selectedAnswerId);
+
+                      field.onChange([
+                        ...field.value.filter((a) => a.question_id !== question.id), // Remove a resposta anterior da mesma pergunta
+                        {
+                          question_id: question.id,
+                          answer_id: selectedAnswerId,
+                          other_text: selectedAnswer?.other ? "" : undefined, // Garante que `other_text` seja tratado
+                        },
+                      ]);
                     }}
                   >
                     {question.answers.map((answer) => (
@@ -191,60 +232,67 @@ export default function DynamicForm() {
                           control={<Radio sx={{ color: "#7E57C2" }} />}
                           label={answer.text}
                         />
-                        {answer.other && selectedAnswers[question.id]?.id === answer.id && (
-                          <TextField
-                            fullWidth
-                            variant="outlined"
-                            size="small"
-                            placeholder="Digite sua resposta"
-                            value={otherResponses[answer.id] || ""}
-                            onChange={(e) => handleOtherTextChange(answer.id, e.target.value)}
-                            sx={{ mt: 1 }}
+                        {answer.other && watch(`answers`).find((a) => a.question_id === question.id)?.answer_id === answer.id && (
+                          <Controller
+                            name={`answers.${question.id}.other_text`}
+                            control={control}
+                            render={({ field: otherField }) => (
+                              <TextField
+                                {...otherField}
+                                fullWidth
+                                variant="outlined"
+                                size="small"
+                                placeholder="Digite sua resposta"
+                                sx={{ mt: 1 }}
+                              />
+                            )}
                           />
                         )}
                       </div>
                     ))}
                   </RadioGroup>
-                </FormControl>
-              </div>
-            ))}
-            <div className="my-2 mt-16">
-              <Button
-                variant="contained"
-                sx={{
-                  background: "linear-gradient(135deg, #7E57C2, #5E3BEE)",
-                  color: "#FFF",
-                  fontWeight: "bold",
-                  width: "100%",
-                  padding: "10px",
-                  borderRadius: "8px",
-                  "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" },
-                }}
-                type="submit"
-                disabled={submitting}
-              >
-                {submitting ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
-              </Button>
-              <Button
-                variant="contained"
-                sx={{
-                  background: "red", 
-                  mt: 2,
-                  color: "#FFFFFF",
-                  fontWeight: "bold",
-                  width: "100%",
-                  padding: "10px",
-                  borderRadius: "8px",
-                }}
-                onClick={handleClear}
-              >
-                Limpar
-              </Button>
+                )}
+              />
+              {errors.answers && (
+                <FormHelperText sx={{fontSize: 14}} error>{errors.answers?.message}</FormHelperText>
+              )}
+              </FormControl>
             </div>
-          </form>
-        ) : (
-          <Typography color="error">Erro ao carregar o formulário.</Typography>
-        )}
+          ))}
+          <div className="my-2 mt-16">
+            <Button
+              variant="contained"
+              sx={{
+                background: "linear-gradient(135deg, #7E57C2, #5E3BEE)",
+                color: "#FFF",
+                fontWeight: "bold",
+                width: "100%",
+                padding: "10px",
+                borderRadius: "8px",
+                "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" },
+              }}
+              type="submit"
+              disabled={submitMutation.isLoading}
+            >
+              {submitMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
+            </Button>
+            <Button
+              variant="contained"
+              sx={{
+                background: "red",
+                mt: 2,
+                color: "#FFFFFF",
+                fontWeight: "bold",
+                width: "100%",
+                padding: "10px",
+                borderRadius: "8px",
+              }}
+              onClick={handleClear}
+            >
+              Limpar
+            </Button>
+          </div>
+        </form>
       </Paper>
     </Container>
   );
