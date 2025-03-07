@@ -6,7 +6,7 @@ import Image from "next/image";
 import Cookies from "js-cookie";
 import fetchRequest from "../utils/fetchRequest";
 import useVerifyAuth from "@/utils/hooks/useVerifyAuth";
-import { Backdrop, CircularProgress, Button, Paper, Typography } from "@mui/material";
+import { Backdrop, CircularProgress, Button, Paper, Typography, Box } from "@mui/material";
 
 
 const SearchHandler = ({ router }: { router: ReturnType<typeof useRouter> }) => {
@@ -107,7 +107,7 @@ const LoginPage = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '10px 24px',
+            padding: '12px 24px',
             border: '1px solid #dadce0',
             borderRadius: '4px', 
             boxShadow: 'none', 
@@ -132,14 +132,16 @@ const LoginPage = () => {
           {loading ? (
             <CircularProgress size={18} color="inherit" />
           ) : (
-            <>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>              
               <img
                 src="https://developers.google.com/identity/images/g-logo.png"
                 alt="Google Logo"
-                style={{ width: '18px', height: '18px', marginRight: '8px' }} // Estilo do ícone
+                style={{ width: '18px', height: '18px', marginRight: '8px' }}
               />
-              Entrar com Google
-            </>
+              <Typography sx={{height: "20px"}}>
+                Entrar com Google
+              </Typography>
+            </Box>
           )}
         </Button>
         <Image
