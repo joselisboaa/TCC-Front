@@ -11,6 +11,7 @@ import DeleteConfirmationDialog from "@/components/DeleteDialog";
 interface Answer {
   id: number;
   text: string;
+  last_change: Date;
   question: {
     id: number;
     text: string;
@@ -21,6 +22,16 @@ interface Answer {
       description: string;
     }
   }
+}
+
+const pad = (num) => {
+  return num < 10 ? `0${num}` : num;
+}
+
+const transformDate = (date): string => {
+  const newDate = new Date(date);
+
+  return `${pad(newDate.getDate())}/${pad(newDate.getMonth())}/${pad(newDate.getFullYear())} ${pad(newDate.getHours())}:${pad(newDate.getMinutes())}:${pad(newDate.getSeconds())}`;
 }
 
 export default function Answers() {
@@ -120,6 +131,9 @@ export default function Answers() {
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Grupo de Usuário: {answer.question.user_group.text}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                Última mudança: {transformDate(answer.last_change)}
               </Typography>
             </CardContent>
             <CardActions>
