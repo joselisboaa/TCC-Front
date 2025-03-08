@@ -29,6 +29,7 @@ interface Answer {
   text: string;
   other: boolean;
   question_id: number;
+  last_change: string;
 }
 
 interface Question {
@@ -36,6 +37,7 @@ interface Question {
   text: string;
   user_group_id: number;
   answers: Answer[];
+  last_change: string;
 }
 
 interface FormValues {
@@ -52,6 +54,14 @@ interface User {
   email: string;
   password: string;
   user_groups: { id: number; text: string; description: string }[];
+}
+
+interface Response {
+  id: number;
+  user_id: number;
+  user: User;
+  responseOrientations: [];
+  timestamp: string;
 }
 
 const responseSchema = yup.object().shape({
@@ -122,6 +132,14 @@ export default function QuestionForm() {
       },
     }
   );
+
+  const { data: userResponses } = useQuery<Response[]>(["responses", userId], 
+    async () => {
+      if (!userId) return null;
+      const res = await fetchRequest<Response, any>(`/responses?user-id=${userId}`);
+      return res.body;
+    }, { enabled: !!userId }
+  );
   
   const handleClear = () => {
     reset({
@@ -171,12 +189,12 @@ export default function QuestionForm() {
     submitMutation.mutate(data);
   };
 
-  if (isUserIdLoading || isFormDataLoading) {
+  if (!userResponses || isUserIdLoading || isFormDataLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: 250 }}>
         <CircularProgress />
       </Box>
-    )
+    );
   }
 
   if (userIdError) {
@@ -191,12 +209,23 @@ export default function QuestionForm() {
     return <Typography color="error">Nenhum dado encontrado.</Typography>;
   }
 
+  if (userResponses && userResponses.length > 0) {
+    const lastResponseTimestamp = new Date(userResponses[userResponses.length - 1].timestamp);
+    const hasChanges = formData.some(question => {
+      return new Date(question.last_change).getTime() > new Date(lastResponseTimestamp).getTime() ||
+      question.answers.some(answer => new Date(answer.last_change).getTime() > new Date(lastResponseTimestamp).getTime())
+    });
+    
+    if (!hasChanges) {
+      return <Typography color="secondary" variant="h6" align="center">Você já respondeu este formulário.</Typography>;
+    }
+  }
 
   return (
     <Container maxWidth="sm" className="flex items-center justify-center h-fit">
       <Paper elevation={3} className="p-6 w-full">
         <form onSubmit={handleSubmit(onSubmit)}>
-          <Typography id="form-title" variant="h5" className="mb-5" gutterBottom>
+          <Typography id="form-title" variant="h5" className="mb-5" gutterBottom align="center">
             Questionário
           </Typography>
           {formData.map((question, questionIndex) => (
