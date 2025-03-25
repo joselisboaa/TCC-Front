@@ -17,24 +17,30 @@ interface Question {
   id: number;
   text: string;
   user_group?: UserGroup;
+  user_group_id?: number;
 }
 
 interface Answer {
   text: string;
-  question: Question;
+  questions: Question[];
   other: boolean;
+  value: number;
 }
 
 const schema = yup.object().shape({
   text: yup.string().trim().required("O texto da resposta é obrigatório"),
-  question: yup
-    .object({
-      id: yup.number().required("A questão é obrigatória").moreThan(0, "A questão é obrigatória"),
-      text: yup.string().required("A questão é obrigatória"),
-      user_group: yup.object().shape({ text: yup.string().optional() }).optional(),
-    })
-    .required("A questão é obrigatória"),
-  other: yup.boolean().required("Campo 'Outros' é obrigatório"),
+  questions: yup
+    .array()
+    .of(
+      yup.object().shape({
+        id: yup.number().required("A questão é obrigatória"),
+        text: yup.string().required("A questão é obrigatória"),
+      })
+    )
+    .min(1, "Selecione pelo menos uma pergunta")
+    .required("A pergunta é obrigatória"),
+  other: yup.boolean().required("O campo outros é obrigatório"),
+  value: yup.number().required("O valor é obrigatório").typeError("O valor deve ser um número"),
 });
 
 
@@ -47,12 +53,13 @@ export default function EditAnswer() {
     resolver: yupResolver(schema),
     defaultValues: {
       text: "",
-      question: { 
+      questions: [{ 
         id: 0, 
         text: "",
         user_group: { text: "" }
-      },
-      other: false
+      }],
+      other: false,
+      value: 0
     },
   });
   
@@ -76,7 +83,7 @@ export default function EditAnswer() {
   const { data: answerData, isLoading: isFetchingAnswer } = useQuery(
     ["answer", id],
     async () => {
-      const response = await fetchRequest<null, { text: string; question: Question; question_id: number; other: boolean }>(
+      const response = await fetchRequest<null, { text: string; questions: Question[]; question_id: number; other: boolean, value: number }>(
         `/answers/${id}`,
         { method: "GET" }
       );
@@ -85,15 +92,16 @@ export default function EditAnswer() {
     {
       enabled: !!id,
       onSuccess: (data) => {
-        const matchedQuestion = questions?.find(q => q.id === data.question.id);
         setValue("text", data.text);
         setValue("other", data.other);
-        setValue("question", {
-          id: data.question.id,
-          text: data.question.text,
-          user_group: matchedQuestion?.user_group,
-        });
-           
+        setValue("value", data.value);
+        setValue("questions", data.questions.map(question => ({
+          id: question.id,
+          text: question.text,
+          user_group: { id: question.user_group_id, text: "" },
+          last_change: ""
+        })));
+      
       },
       onError: (error) => {
         enqueueSnackbar(
@@ -109,7 +117,7 @@ export default function EditAnswer() {
     async (data: Answer) => {
       await fetchRequest(`/answers/${id}`, {
         method: "PUT",
-        body: { text: data.text, question_id: data.question.id, other: data.other },
+        body: { text: data.text, question_id: data.questions.map(q => q.id), other: data.other, value: data.value },
       });
     },
     {
@@ -126,7 +134,7 @@ export default function EditAnswer() {
     }
   );
 
-  if (isFetchingAnswer || isFetchingQuestions || getValues("question.id") === 0) {
+  if (isFetchingAnswer || isFetchingQuestions || getValues('questions.0.id') === 0) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
         <CircularProgress />
@@ -155,20 +163,42 @@ export default function EditAnswer() {
             />
 
             <Controller
-              name="question"
+              name="questions"
               control={control}
               render={({ field }) => (
                 <Autocomplete
                   {...field}
+                  multiple
                   options={questions || []}
                   getOptionLabel={(option) => `${option.text} ${option.user_group?.text ? "(" + option.user_group.text + ")" : ""}`}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
                   onChange={(_, newValue) => field.onChange(newValue)}
                   renderInput={(params) => (
-                    <TextField {...params} label="Selecionar Pergunta" fullWidth variant="outlined" error={!!errors.question} helperText={errors.question?.message} />
+                    <TextField
+                      {...params}
+                      label="Selecionar Perguntas"
+                      fullWidth
+                      variant="outlined"
+                      error={!!errors.questions} 
+                      helperText={errors.questions?.message}
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {isFetchingQuestions ? <CircularProgress size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
                   )}
                 />
               )}
+            />
+
+            <Controller
+              name="value"
+              control={control}
+              render={({ field }) => <TextField {...field} label="Valor da Resposta" fullWidth variant="outlined" error={!!errors.value} helperText={errors.value?.message}/>}
             />
 
             <Controller
