@@ -18,23 +18,21 @@ interface Question {
 const schema = yup.object().shape({
   text: yup.string().trim().required("O texto da resposta é obrigatório"),
   question: yup
-    .object()
-    .shape({
-      id: yup.number().required("A questão é obrigatória"),
-      text: yup.string().required("A questão é obrigatória"),
-      user_group: yup
-        .object()
-        .shape({
-          text: yup.string(),
-        })
-        .nullable(),
-    })
-    .test("valid-question", "A questão é obrigatória", (value) => {
-      return value && value.id !== 0 && value.text.trim() !== "";
-    })
-    .nullable()
+    .array()
+    .of(
+      yup.object().shape({
+        id: yup.number().required("A questão é obrigatória"),
+        text: yup.string().required("A questão é obrigatória"),
+        user_group: yup.object().shape({
+          id: yup.number().required("O grupo de usuários é obrigatório"),
+          text: yup.string().required("O grupo de usuários é obrigatório"),
+        }),
+      })
+    )
+    .min(1, "Selecione pelo menos uma pergunta")
     .required("A pergunta é obrigatória"),
   other: yup.boolean().required("O campo outros é obrigatório"),
+  value: yup.number().required("O valor é obrigatório").typeError("O valor deve ser um número"),
 });
 
 
@@ -46,8 +44,9 @@ export default function CreateAnswer() {
     resolver: yupResolver(schema),
     defaultValues: {
       text: "",
-      question: { id: 0, text: "" },
+      question: [],
       other: false,
+      value: 0,
     },
   });
 
@@ -68,7 +67,12 @@ export default function CreateAnswer() {
     async (data: any) => {
       await fetchRequest("/answers", {
         method: "POST",
-        body: { text: data.text, question_id: data.question.id, other: data.other },
+        body: { 
+          text: data.text, 
+          other: data.other,
+          value: data.value,
+          question_id: data.question.map((q: any) => q.id)
+        },
       });
     },
     {
@@ -106,19 +110,18 @@ export default function CreateAnswer() {
               render={({ field }) => (
                 <Autocomplete
                   {...field}
+                  multiple
                   options={questions || []}
-                  getOptionLabel={(option) => {
-                    if (!option || !option.text) return "";
-                    return `${option.text} ${option.user_group?.text ? "(" + option.user_group.text + ")" : ""}`;
-                  }}
-                                    onChange={(_, newValue) => field.onChange(newValue)}
+                  getOptionLabel={(option) => `${option.text} ${option.user_group?.text ? "(" + option.user_group.text + ")" : ""}`}
+                  onChange={(_, newValue) => field.onChange(newValue)}
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Selecionar Pergunta"
+                      label="Selecionar Perguntas"
                       fullWidth
                       variant="outlined"
-                      error={!!errors.question} helperText={errors.question?.message}
+                      error={!!errors.question} 
+                      helperText={errors.question?.message}
                       InputProps={{
                         ...params.InputProps,
                         endAdornment: (
@@ -132,6 +135,12 @@ export default function CreateAnswer() {
                   )}
                 />
               )}
+            />
+
+            <Controller
+              name="value"
+              control={control}
+              render={({ field }) => <TextField {...field} label="Valor da Resposta" fullWidth variant="outlined" error={!!errors.value} helperText={errors.value?.message}/>}
             />
 
             <Controller
