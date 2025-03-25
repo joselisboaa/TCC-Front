@@ -12,16 +12,20 @@ interface Answer {
   id: number;
   text: string;
   last_change: Date;
-  question: {
+  value: number;
+  questions: Question[];
+}
+
+interface Question {
+  id: number;
+  text: string;
+  other: boolean;
+  user_group: {
     id: number;
     text: string;
-    other: boolean;
-    user_group: {
-      id: number;
-      text: string;
-      description: string;
-    }
+    description: string;
   }
+  last_change: string;
 }
 
 const pad = (num) => {
@@ -31,7 +35,31 @@ const pad = (num) => {
 const transformDate = (date): string => {
   const newDate = new Date(date);
 
+  if (newDate.toString() === "Invalid Date") {
+    return "Sem alterações";
+  }
+
   return `${pad(newDate.getDate())}/${pad(newDate.getMonth())}/${pad(newDate.getFullYear())} ${pad(newDate.getHours())}:${pad(newDate.getMinutes())}:${pad(newDate.getSeconds())}`;
+}
+
+const processAllDates = (questions: Question[]) => {
+  const last_change = {
+    date: new Date(0)
+  }
+
+  for(let index = 0; index < questions.length; index++) {
+    const date = new Date(questions[index].last_change);
+    
+    console.log(questions)
+    last_change.date = date;
+
+    if (last_change.date === null || date > last_change.date) {
+      last_change.date = date;
+    }
+  }
+
+
+  return transformDate(last_change.date);
 }
 
 export default function Answers() {
@@ -127,13 +155,10 @@ export default function Answers() {
                 {answer.text}
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                Pergunta: {answer.question.text}
+              Valor da Resposta: {answer.value}
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                Grupo de Usuário: {answer.question.user_group.text}
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                Última mudança: {transformDate(answer.last_change)}
+                Última mudança das Perguntas: {processAllDates(answer.questions)}
               </Typography>
             </CardContent>
             <CardActions>
