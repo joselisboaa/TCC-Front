@@ -8,13 +8,7 @@ import { useForm, Controller } from "react-hook-form";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import fetchRequest from "@/utils/fetchRequest";
-import { useMemo, useEffect } from "react";
 
-interface Answer {
-  id: number;
-  text: string;
-  question: Question;
-}
 
 interface Question {
   id: number;
@@ -25,58 +19,35 @@ interface Question {
 interface Orientation {
   id: number;
   text: string;
-  value: number;
-  answer_id: number;
-  answer: {
+  threshold: number;
+  question_id: number;
+  question: {
     id: number;
     text: string;
-    other: boolean;
-    question_id: number;
-    question: {
-      id: number;
-      text: string;
-      user_group_id: number;
-      user_group: { id: number; text: string; description: string };
-    };
+    user_group_id: number;
+    user_group: { id: number; text: string; description: string };
   };
 }
 
 interface FormData {
   text: string;
-  value: number;
-  answer: Answer;
   question: Question;
+  threshold: number;
 }
 
 const schema = yup.object().shape({
   text: yup.string().trim().required("O texto da orientação é obrigatório"),
-  value: yup.number().typeError("O peso deve ser um número").required("O peso da orientação é obrigatório"),
+  threshold: yup.number().typeError("O peso deve ser um número").required("O peso da orientação é obrigatório"),
   question: yup
-  .object()
-  .required("A questão é obrigatória")
-  .shape({
-    id: yup.number().required("A questão é obrigatória"),
-    text: yup.string().required("A questão é obrigatória"),
-    user_group: yup.object().shape({ text: yup.string().required("A questão é obrigatória") }),
-  })
-  .test("valid-question", "A questão é obrigatória", (value) => {
-    return value && value.id !== 0 && value.text.trim() !== "";
-  }),
-  answer: yup
-  .object()
-  .required("A resposta é obrigatória")
-  .shape({
-    id: yup.number().required("A questão é obrigatória"),
-    text: yup.string().required("A questão é obrigatória"),
-    question: yup.object().shape({
-      id: yup.number().required("A questão é obrigatória"),
-      text: yup.string().required("A questão é obrigatória"),
-      user_group: yup.object().shape({ text: yup.string().required("A questão é obrigatória") }),
-    }),
-  })
-  .test("valid-answer", "A resposta é obrigatória", (value) => {
-    return value && value.id !== 0 && value.text.trim() !== "";
-  })
+    .object()
+    .shape({
+      id: yup.number().moreThan(0, "Selecione uma pergunta válida").required(),
+      text: yup.string().required(),
+      user_group: yup.object().shape({
+        text: yup.string().required(),
+      }),
+    })
+    .required("A pergunta é obrigatória"),
 });
 
 export default function EditOrientation() {
@@ -84,14 +55,13 @@ export default function EditOrientation() {
   const { enqueueSnackbar } = useSnackbar();
   const { id }: any = useParams();
 
-  const { control, handleSubmit, setValue, getValues, watch, formState: { errors } } = useForm<FormData>({
+  const { control, handleSubmit, setValue, getValues, formState: { errors } } = useForm<FormData>({
     resolver: yupResolver(schema),
     mode: "onChange",
     reValidateMode: "onChange",
     defaultValues: {
       text: "",
-      value: 0,
-      answer: { id: 0, text: "", question: { id: 0, text: "", user_group: { text: "" } } },
+      threshold: 0,
       question: { id: 0, text: "", user_group: { text: "" }}
     },
   });
@@ -106,9 +76,8 @@ export default function EditOrientation() {
       enabled: !!id,
       onSuccess: (data) => {
         setValue("text", data.text);
-        setValue("value", data.value);
-        setValue("answer", data.answer);
-        setValue("question", data.answer.question);
+        setValue("question", data.question);
+        setValue("threshold", data.threshold);
       },
       onError: (error) => {
         enqueueSnackbar(`Erro ao carregar a orientação: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
@@ -117,43 +86,20 @@ export default function EditOrientation() {
     }
   );
 
-  const { data: questions, isLoading: isFetchingQuestions } = useQuery(
-    "questions",
-    async () => {
-      const response = await fetchRequest<null, Question[]>("/questions", { method: "GET" });
-      return response.body;
-    }
-  );
-
-  const { data: answers, isLoading: isFetchingAnswers } = useQuery(
-    "answers",
-    async () => {
-      const response = await fetchRequest<null, Answer[]>("/answers", { method: "GET" });
-      return response.body;
-    }
-  );
-
-  const selectedQuestion = watch("question");
-
-  const filteredAnswers = useMemo(() => (
-    selectedQuestion?.id ? answers?.filter(a => a.question?.id === selectedQuestion.id) : answers
-  ), [selectedQuestion, answers]);
-
-  useEffect(() => {
-    if (!selectedQuestion?.id) return;
-  
-    const possibleAnswers = answers?.filter(a => a.question?.id === selectedQuestion.id) || [];
-
-    const currentAnswer = getValues("answer");
-  
-    setValue("answer", possibleAnswers.length > 0 ? currentAnswer : { id: 0, text: "", question: selectedQuestion }, { shouldDirty: true });
-  }, [selectedQuestion, answers, setValue]);  
+  const { data: questions, isLoading: isFetchingQuestions } = useQuery("questions", async () => {
+    const response = await fetchRequest<null, Question[]>("/questions", { method: "GET" });
+    return response.body;
+  }, {
+    onError: (error) => {
+      enqueueSnackbar(`Erro ao carregar perguntas: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
+    },
+  });
 
   const updateMutation = useMutation(
     async (data: FormData) => {
       await fetchRequest(`/orientations/${id}`, {
         method: "PUT",
-        body: { text: data.text, value: data.value, answer_id: data.answer.id },
+        body: { text: data.text, threshold: data.threshold, question_id: data.question.id },
       });
     },
     {
@@ -168,11 +114,10 @@ export default function EditOrientation() {
   );
 
   const onSubmit = (data: FormData) => {
-    console.log(data)
     updateMutation.mutate(data);
   };
 
-  if (isFetchingOrientation || isFetchingAnswers || isFetchingQuestions || getValues("question.id") === 0 || getValues("answer.id") === 0) {
+  if (isFetchingOrientation || isFetchingQuestions || getValues("question.id") === 0) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
         <CircularProgress />
@@ -197,13 +142,11 @@ export default function EditOrientation() {
               <TextField {...field} label="Texto" fullWidth error={!!errors.text} helperText={errors.text?.message} />
             )}
           />
-          <Controller 
-            name="value" 
-            control={control} 
-            render={({ field }) => (
-              <TextField {...field} label="Peso" type="number" fullWidth error={!!errors.value} helperText={errors.value?.message} />
-            )} 
-          />
+
+          <Controller name="threshold" control={control} render={({ field }) => (
+            <TextField {...field} label="Peso" type="number" fullWidth error={!!errors.threshold} helperText={errors.threshold?.message} />
+          )} />
+          
           <Controller
             name="question"
             control={control}
@@ -214,25 +157,11 @@ export default function EditOrientation() {
                 getOptionLabel={(option) => option?.text || ""}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
                 onChange={(_, newValue) => field.onChange(newValue || null)}
-                renderInput={(params) => <TextField {...params} label="Filtrar respostas a partir da Pergunta" error={!!errors.question} helperText={errors.question?.message} fullWidth />}
+                renderInput={(params) => <TextField {...params} label="Selecionar a Pergunta" error={!!errors.question} helperText={errors.question?.message} fullWidth />}
               />
             )}
           />
 
-          <Controller
-            name="answer"
-            control={control}
-            render={({ field }) => (
-              <Autocomplete
-                {...field}
-                options={filteredAnswers || []}
-                getOptionLabel={(option) => option?.text || ""}
-                isOptionEqualToValue={(option, value) => option.id === value.id}
-                onChange={(_, newValue) => field.onChange(newValue || null)}
-                renderInput={(params) => <TextField {...params} label="Resposta" error={!!errors.answer} helperText={errors.answer?.message} fullWidth />}
-              />
-            )}
-          />
           <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
             <Button
               variant="contained"
