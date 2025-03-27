@@ -11,19 +11,16 @@ import { useState } from "react";
 interface Orientation {
   id: number;
   text: string;
-  value: number;
-  answer_id: number;
-  answer: {
+  threshold: number;
+  question: {
     id: number;
     text: string;
-    question: {
+    last_change: string;
+    user_group_id: number;
+    user_group: {
       id: number;
       text: string;
-      user_group: {
-        id: number;
-        text: string;
-        description: string;
-      }
+      description: string;
     }
   }
 }
@@ -47,7 +44,7 @@ export default function OrientationsPage() {
     {
       onError: (error: unknown) => {
         enqueueSnackbar(
-          `Erro ao carregar grupos: ${
+          `Erro ao carregar orientações: ${
             error instanceof Error ? error.message : "Erro desconhecido"
           }`,
           { variant: "error" }
@@ -121,16 +118,10 @@ export default function OrientationsPage() {
                   {orientation.text}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
-                  Peso da Orientação: {orientation.value}
+                  Questão: {orientation.question.text}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
-                  Pergunta: {orientation.answer.question.text}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Resposta: {orientation.answer.text}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Grupo de Usuário: {orientation.answer.question.user_group.text}
+                  Limiar da Orientação: {orientation.threshold}
                 </Typography>
               </CardContent>
               <CardActions>
