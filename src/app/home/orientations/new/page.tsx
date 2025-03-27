@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Box, Button, TextField, Typography, CircularProgress, Autocomplete, Paper } from "@mui/material";
 import { useSnackbar } from "notistack";
@@ -9,12 +8,6 @@ import { useForm, Controller } from "react-hook-form";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import fetchRequest from "@/utils/fetchRequest";
-
-interface Answer {
-  id: number;
-  text: string;
-  question: Question;
-}
 
 interface Question {
   id: number;
@@ -26,14 +19,13 @@ interface Question {
 
 interface FormData {
   text: string;
-  value: number;
-  answer: Answer;
   question: Question;
+  threshold: number;
 }
 
 const schema = yup.object().shape({
   text: yup.string().trim().required("O texto da orientação é obrigatório"),
-  value: yup.number().typeError("O peso deve ser um número").required("O peso da orientação é obrigatório"),
+  threshold: yup.number().typeError("O limiar deve ser um número").required("O limiar da orientação é obrigatório"),
   question: yup
     .object()
     .shape({
@@ -44,44 +36,20 @@ const schema = yup.object().shape({
       }),
     })
     .required("A pergunta é obrigatória"),
-  answer: yup
-    .object()
-    .shape({
-      id: yup.number().moreThan(0, "Selecione uma resposta válida").required(),
-      text: yup.string().required(),
-      question: yup.object().shape({
-        id: yup.number().required(),
-        text: yup.string().required(),
-        user_group: yup.object().shape({
-          text: yup.string().required(),
-        }),
-      }),
-    })
-    .test("valid-answer", "A resposta é obrigatória", (value) => {
-      return value && value.id !== 0 && value.text.trim() !== "";
-    })
-    .required("A resposta é obrigatória"),
 });
-
 
 export default function CreateOrientation() {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
 
-  const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormData>({
+  const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: yupResolver(schema),
     defaultValues: {
       text: "",
-      value: 0,
-      answer: { 
-        id: 0, 
-        text: "", 
-        question: { id: 0, text: "", user_group: { text: "" } } 
-      }
+      threshold: 0,
+      question: { id: 0, text: "", user_group: { text: "" } },
     },
   });
-
-  const selectedQuestion = watch("question");
 
   const { data: questions, isLoading: isFetchingQuestions } = useQuery("questions", async () => {
     const response = await fetchRequest<null, Question[]>("/questions", { method: "GET" });
@@ -92,31 +60,10 @@ export default function CreateOrientation() {
     },
   });
 
-  const { data: answers, isLoading: isFetchingAnswers } = useQuery("answers", async () => {
-    const response = await fetchRequest<null, Answer[]>("/answers", { method: "GET" });
-    return response.body;
-  }, {
-    onError: (error: unknown) => {
-      enqueueSnackbar(`Erro ao carregar respostas: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
-    },
-  });
-
-  const filteredAnswers = selectedQuestion?.id ? answers?.filter(answer => answer.question?.id === selectedQuestion.id) : answers || [];
-
-  useEffect(() => {
-    const answerDefaultValue = { 
-      id: 0, 
-      text: "", 
-      question: { id: 0, text: "", user_group: { text: "" } } 
-    };
-
-    setValue("answer", answerDefaultValue);
-  }, [watch("question"), setValue]);
-
   const createMutation = useMutation(async (data: FormData) => {
     await fetchRequest("/orientations", {
       method: "POST",
-      body: { text: data.text, value: data.value, answer_id: data.answer.id },
+      body: { text: data.text, threshold: data.threshold, question_id: data.question.id },
     });
   }, {
     onSuccess: () => {
@@ -150,13 +97,9 @@ export default function CreateOrientation() {
             )}
           />
 
-          <Controller
-            name="value"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} label="Peso da Orientação" type="number" fullWidth variant="outlined" error={!!errors.value} helperText={errors.value?.message} />
-            )}
-          />
+          <Controller name="threshold" control={control} render={({ field }) => (
+            <TextField {...field} label="Peso" type="number" fullWidth error={!!errors.threshold} helperText={errors.threshold?.message} />
+          )} />
 
           <Controller
             name="question"
@@ -170,28 +113,7 @@ export default function CreateOrientation() {
                 onChange={(_, newValue) => field.onChange(newValue)}
                 value={field.value || null}
                 renderInput={(params) => (
-                  <TextField {...params} label="Filtrar respostas a partir da Pergunta" fullWidth variant="outlined" error={!!errors.question} helperText={errors.question?.message} />
-                )}
-              />
-            )}
-          />
-
-          <Controller
-            name="answer"
-            control={control}
-            render={({ field }) => (
-              <Autocomplete
-                {...field}
-                options={filteredAnswers || []}
-                noOptionsText="Nenhuma resposta encontrada"
-                getOptionLabel={(option) => option.text}
-                isOptionEqualToValue={(option, value) => option.id === value.id}
-                loading={isFetchingAnswers}
-                onChange={(_, newValue) => field.onChange(newValue)}
-                value={field.value || null} // Evita erro de componente controlado
-                disabled={!selectedQuestion}
-                renderInput={(params) => (
-                  <TextField {...params} label="Selecionar Resposta" fullWidth error={!!errors.answer} helperText={errors.answer?.message} />
+                  <TextField {...params} label="Selecionar Pergunta" fullWidth variant="outlined" error={!!errors.question} helperText={errors.question?.message} />
                 )}
               />
             )}
