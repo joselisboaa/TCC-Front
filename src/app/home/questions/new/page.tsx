@@ -16,15 +16,15 @@ export interface UserGroup {
 
 const schema = yup.object().shape({
   text: yup.string().trim().required("O texto da questão é obrigatório"),
-  userGroup: yup
-    .object()
-    .shape({
-      id: yup.number().required(),
-      text: yup.string().required(),
-    })
-    .test("valid-user-group", "O grupo de usuários é obrigatório", (value) => {
-      return value && value.id !== 0 && value.text.trim() !== "";
-    })
+  userGroups: yup
+    .array()
+    .of(
+      yup.object().shape({
+        id: yup.number().required(),
+        text: yup.string().required(),
+      })
+    )
+    .min(1, "Selecione ao menos um grupo de usuários")
     .required("O grupo de usuários é obrigatório"),
 });
 
@@ -39,7 +39,10 @@ export default function CreateQuestion() {
     reset,
   } = useForm({
     resolver: yupResolver(schema),
-    defaultValues: { text: "", userGroup: { id: 0, text: ""} },  
+    defaultValues: {
+      text: "",
+      userGroups: [],
+    },
   });
 
   const { data: userGroups, isLoading: loadingGroups } = useQuery<UserGroup[]>(
@@ -59,10 +62,13 @@ export default function CreateQuestion() {
   );
 
   const saveQuestionMutation = useMutation(
-    async (data: { text: string; userGroup: UserGroup }) => {
+    async (data: { text: string; userGroups: UserGroup[] }) => {
       await fetchRequest("/questions", {
         method: "POST",
-        body: { text: data.text, user_group_id: data.userGroup.id },
+        body: {
+          text: data.text,
+          user_group_ids: data.userGroups.map((user_group) => user_group.id), 
+        },
       });
     },
     {
@@ -80,9 +86,10 @@ export default function CreateQuestion() {
     }
   );
 
-  const onSubmit = async (data: { text: string; userGroup: UserGroup }) => {
+  const onSubmit = async (data: { text: string; userGroups: UserGroup[] }) => {
     await saveQuestionMutation.mutateAsync(data);
   };
+
 
   return (
     <Box sx={{ display: "flex", justifyContent: "center", height: "fit" }}>
@@ -104,11 +111,12 @@ export default function CreateQuestion() {
           />
 
           <Controller
-            name="userGroup"
+            name="userGroups"
             control={control}
             render={({ field }) => (
               <Autocomplete
                 {...field}
+                multiple
                 options={userGroups || []}
                 getOptionLabel={(option) => option.text}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
@@ -117,10 +125,14 @@ export default function CreateQuestion() {
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="Selecionar Grupo de Usuários"
+                    label="Selecionar Grupos de Usuários"
                     fullWidth
-                    error={!!errors.userGroup}
-                    helperText={errors.userGroup?.message}
+                    error={!!errors.userGroups}
+                    helperText={
+                      Array.isArray(errors.userGroups)
+                        ? errors.userGroups[0]?.message
+                        : (errors.userGroups as any)?.message
+                    }
                     InputProps={{
                       ...params.InputProps,
                       endAdornment: (
