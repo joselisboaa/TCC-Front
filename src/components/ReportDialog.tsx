@@ -1,45 +1,69 @@
 import { useRef, useState } from "react";
-import { 
-  Dialog, DialogTitle, DialogContent, DialogActions, Typography, 
-  Button, Box, FormControl, RadioGroup, FormControlLabel, Radio , Card,
+import {
+  Dialog, DialogTitle, DialogContent, DialogActions, Typography,
+  Button, Box, FormControl, RadioGroup, FormControlLabel, Radio, Card,
   CircularProgress
 } from "@mui/material";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 
-interface Question {
+interface UserGroup {
+  id?: number;
   text: string;
-  answer: string;
-  orientation: string;
+  description?: string;
 }
 
-interface Orientation {
-  questions: Question[];
-  value: number;
-}
-
-interface ReportData {
+interface Question {
   id: number;
+  text: string;
+  user_group_id: number;
+  last_change: string;
+  user_group?: UserGroup;
+}
+
+interface Answer {
+  id: number;
+  text: string;
+  value: number;
+  other: boolean;
+  questions: Question[];
+}
+
+interface AnsweredQuestion {
+  question: Question;
+  answer: Answer;
+}
+
+interface User {
+  phone_number: string;
+  email: string;
+  name: string;
+  user_groups: UserGroup[];
+}
+
+interface DetailedResponse {
+  id: number;
+  user_id: number;
   timestamp: string;
-  orientations: Record<string, Orientation>;
+  user: User;
+  answeredQuestions: AnsweredQuestion[];
 }
 
 interface ReportDialogProps {
   open: boolean;
   onClose: () => void;
-  jsonData: ReportData | null;
-  username: string | null;
+  jsonData: DetailedResponse | null;
 }
 
-export default function ReportDialog({ open, onClose, jsonData, username }: ReportDialogProps) {
+export default function ReportDialog({ open, onClose, jsonData }: ReportDialogProps) {
   const pdfRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
 
   const handleDownloadPDF = async () => {
     if (!jsonData || !pdfRef.current) return;
-    
+
     setLoading(true);
-    
+
     const canvas = await html2canvas(pdfRef.current, { scale: 2 });
     const imgData = canvas.toDataURL("image/png");
 
@@ -51,19 +75,13 @@ export default function ReportDialog({ open, onClose, jsonData, username }: Repo
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(126, 87, 194);
     const pageWidth = pdf.internal.pageSize.getWidth();
-    const textWidth = pdf.getTextWidth("Relatorio do Usuario");
+    const textWidth = pdf.getTextWidth("Relatório do Usuário");
     pdf.text("Relatório do Usuário", (pageWidth - textWidth) / 2, 15);
 
     pdf.addImage(imgData, "PNG", 10, 25, imgWidth, imgHeight);
     pdf.save("relatorio.pdf");
 
     setLoading(false);
-  };
-
-  const getMarkerColor = (value: number) => {
-    if (value >= 0 && value < 20) return "green"; 
-    if (value >= 20 && value <= 30) return "yellow";
-    return "red"; 
   };
 
   return (
@@ -78,45 +96,36 @@ export default function ReportDialog({ open, onClose, jsonData, username }: Repo
               </Typography>
 
               <Typography variant="h6">
-                Nome: {username ? username : "Usuário não identificado"}
+                Nome: {jsonData.user.name || "Usuário não identificado"}
               </Typography>
 
-              {Object.entries(jsonData.orientations || {}).map(([key, orientation], index) => (
+              <Typography variant="h6">
+                Grupos de Usuário:&nbsp;
+                <strong>
+                  {jsonData.user.user_groups.map((group) => group.text).join(", ")}
+                </strong>
+              </Typography>
+
+
+              {jsonData.answeredQuestions.map((item, index) => (
                 <Box key={index} sx={{ mt: 2, mb: 2 }}>
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <Typography variant="h6">Grupo de Usuário: <strong>{key}</strong></Typography>
-                    <Box
-                      sx={{
-                        width: "100px",
-                        height: "25px",
-                        backgroundColor: getMarkerColor(orientation.value),
-                        marginLeft: "10px",
-                        borderRadius: "5px"
-                      }}
-                    />
-                  </Box>
-                  {orientation.questions.map((question, questionIndex) => (
-                    <Card key={questionIndex} variant="outlined" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 2, marginBlock: 2 }}>
-                      <FormControl component="fieldset">
-                        <Typography variant="body1" sx={{ fontWeight: "bold" }}>
-                          {question.text}
-                        </Typography>
-                        <RadioGroup value={question.answer}>
-                          <FormControlLabel
-                            value={question.answer}
-                            control={<Radio sx={{ color: "#7E57C2" }} />}
-                            label={question.answer}
-                          />
-                        </RadioGroup>
-                      </FormControl>
-                    </Card>
-                  ))}
-                  <Typography variant="body2" color="textSecondary">
-                    Peso da Orientação: {orientation.value}
-                  </Typography>
-                  <Typography variant="h6">
-                    Orientação: {orientation.questions[index].orientation}
-                  </Typography>
+                  <Card variant="outlined" sx={{ padding: 2, marginBlock: 2 }}>
+                    <Typography variant="body1" sx={{ fontWeight: "bold" }}>
+                      {item.question.text}
+                    </Typography>
+                    <FormControl component="fieldset">
+                      <RadioGroup value={item.answer.text}>
+                        <FormControlLabel
+                          value={item.answer.text}
+                          control={<Radio sx={{ color: "#7E57C2" }} />}
+                          label={item.answer.text}
+                        />
+                      </RadioGroup>
+                    </FormControl>
+                    <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                      Valor da resposta: {item.answer.value}
+                    </Typography>
+                  </Card>
                 </Box>
               ))}
             </>
@@ -126,10 +135,10 @@ export default function ReportDialog({ open, onClose, jsonData, username }: Repo
         </Box>
 
         <DialogActions>
-          <Button 
-            variant="contained" 
-            onClick={handleDownloadPDF} 
-            color="success" 
+          <Button
+            variant="contained"
+            onClick={handleDownloadPDF}
+            color="success"
             disabled={!jsonData || loading}
           >
             {loading ? <CircularProgress size={24} sx={{ color: "#fff" }} /> : "Baixar PDF"}
