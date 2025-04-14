@@ -12,19 +12,28 @@ import fetchRequest from "@/utils/fetchRequest";
 interface UserGroup {
   id: number;
   text: string;
+  description?: string;
 }
+
+interface Question {
+  id: number;
+  text: string;
+  last_change: string;
+  user_groups: UserGroup[];
+}
+
 
 const schema = yup.object().shape({
   text: yup.string().trim().required("O texto da questão é obrigatório"),
-  userGroup: yup
-    .object()
-    .shape({
-      id: yup.number().required(),
-      text: yup.string().required(),
-    })
-    .test("valid-user-group", "O grupo de usuários é obrigatório", (value) => {
-      return value && value.id !== 0 && value.text.trim() !== "";
-    })
+  userGroups: yup
+    .array()
+    .of(
+      yup.object().shape({
+        id: yup.number().required(),
+        text: yup.string().required(),
+      })
+    )
+    .min(1, "Selecione ao menos um grupo de usuários")
     .required("O grupo de usuários é obrigatório"),
 });
 
@@ -41,7 +50,7 @@ export default function EditQuestion() {
     formState: { errors },
   } = useForm({
     resolver: yupResolver(schema),
-    defaultValues: { text: "", userGroup: { id: 0, text: "" } },
+    defaultValues: { text: "", userGroups: [] },
   });
 
   const { data: userGroups, isLoading: isFetchingUserGroups } = useQuery<UserGroup[]>(
@@ -59,33 +68,40 @@ export default function EditQuestion() {
       },
     }
   );
-  
 
-  const { data: questionData, isLoading: isFetchingQuestion } = useQuery<{ text: string; user_group_id: number }>(
+  const { data: questionData, isLoading: isFetchingQuestion } = useQuery<Question>(
     ["question", id],
-    async (): Promise<{ text: string; user_group_id: number }> => {
-      const response = await fetchRequest<null, { text: string; user_group_id: number }>(`/questions/${id}`, { method: "GET" });
+    async (): Promise<Question> => {
+      const response = await fetchRequest<null, Question>(`/questions/${id}`, { method: "GET" });
       return response.body;
     },
     {
       enabled: !!id && !!userGroups,
       onSuccess: (data) => {
         setValue("text", data.text);
-        const selectedGroup = userGroups?.find((group) => group.id === data.user_group_id) || { id: 0, text: "" };
-        setValue("userGroup", selectedGroup);
+        const matchedGroups = data.user_groups.map(group =>
+          userGroups?.find(g => g.id === group.id)
+        ).filter(Boolean) as UserGroup[];
+        setValue("userGroups", matchedGroups);
       },
       onError: (error) => {
-        enqueueSnackbar(`Erro ao carregar a questão: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
+        enqueueSnackbar(
+          `Erro ao carregar a questão: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+          { variant: "error" }
+        );
         router.push("/home/questions");
       },
     }
   );
 
   const updateMutation = useMutation(
-    async (data: any) => {
+    async (data: {text: string, userGroups: UserGroup[]}) => {
       await fetchRequest(`/questions/${id}`, {
         method: "PUT",
-        body: { text: data.text, user_group_id: data.userGroup.id },
+        body: { 
+          text: data.text,
+          user_group_ids: data.userGroups.map((group) => group.id),
+        },
       });
     },
     {
@@ -94,12 +110,13 @@ export default function EditQuestion() {
         router.push("/home/questions");
       },
       onError: (error) => {
-        enqueueSnackbar(`Erro ao atualizar questão: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
+        enqueueSnackbar(`Erro ao atualizar questão: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+        { variant: "error" });
       },
     }
   );
 
-  if (isFetchingQuestion || isFetchingUserGroups || getValues("userGroup.id") === 0) {
+  if (isFetchingQuestion || isFetchingUserGroups || getValues("userGroups").length === 0) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
         <CircularProgress />
@@ -128,17 +145,25 @@ export default function EditQuestion() {
             />
 
             <Controller
-              name="userGroup"
+              name="userGroups"
               control={control}
               render={({ field }) => (
                 <Autocomplete
                   {...field}
+                  multiple
                   options={userGroups || []}
                   getOptionLabel={(option) => option.text}
                   isOptionEqualToValue={(option, value) => option.id === value.id}
                   onChange={(_, newValue) => field.onChange(newValue)}
                   renderInput={(params) => (
-                    <TextField {...params} label="Selecionar Grupo de Usuários" fullWidth variant="outlined" error={!!errors.userGroup} helperText={errors.userGroup?.message} />
+                    <TextField
+                      {...params}
+                      label="Grupos de Usuários"
+                      fullWidth
+                      variant="outlined"
+                      error={!!errors.userGroups}
+                      helperText={(errors.userGroups as any)?.message}
+                    />
                   )}
                 />
               )}
