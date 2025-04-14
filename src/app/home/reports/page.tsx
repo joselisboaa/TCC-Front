@@ -6,35 +6,33 @@ import { useSnackbar } from "notistack";
 import fetchRequest from "@/utils/fetchRequest";
 import { useQuery, useMutation } from "react-query";
 import ReportDialog from "@/components/ReportDialog";
+import AverageDialog from "@/components/ResponsesAverageDialog";
+
+interface UserGroup {
+  id?: number;
+  text: string;
+  description?: string;
+}
+
+interface Question {
+  id: number;
+  text: string;
+  user_group_id: number;
+  last_change: string;
+  user_group?: UserGroup;
+}
 
 interface Answer {
   id: number;
   text: string;
-  other: boolean;
-  question_id: number;
-  question: {
-    id: number;
-    text: string;
-    user_group_id: number;
-  };
-}
-
-interface Orientation {
-  id: number;
-  text: string;
   value: number;
-  answer_id: number;
+  other: boolean;
+  questions: Question[];
+}
+
+interface AnsweredQuestion {
+  question: Question;
   answer: Answer;
-}
-
-interface ResponseOrientation {
-  response_id: number;
-  orientation_id: number;
-  orientation: Orientation;
-}
-
-interface UserGroup {
-  text: string;
 }
 
 interface User {
@@ -44,35 +42,34 @@ interface User {
   user_groups: UserGroup[];
 }
 
-interface Question {
-  text: string;
-  answer: string;
-  orientation: string;
-}
-
-interface reportOrientation {
-  questions: Question[];
-  value: number;
-}
-
-interface ReportData {
+interface DetailedResponse {
   id: number;
+  user_id: number;
   timestamp: string;
-  orientations: Record<string, reportOrientation>;
+  user: User;
+  answeredQuestions: AnsweredQuestion[];
 }
 
 interface Response {
   id: number;
   timestamp: string;
   user_id: number;
-  responseOrientations: ResponseOrientation[];
   user: User;
 }
 
+interface AverageResponses {
+  id: number;
+  text: string;
+  average: number;
+  total: number;
+  threshold: string;
+}
+
 export default function Responses() {
-  const [jsonData, setJsonData] = useState<ReportData | null>(null);
+  const [jsonData, setJsonData] = useState<DetailedResponse | null>(null);
   const [loadingReportId, setLoadingReportId] = useState<number | null>(null);
-  const [username, setUsername] = useState<string | null>(null);
+  const [averageOpen, setAverageOpen] = useState(false);
+  const [averageResponses, setAverageResponses] = useState<AverageResponses[]>([]);
   const { enqueueSnackbar } = useSnackbar();
 
   const { data: responses = [], isLoading } = useQuery<Response[]>({
@@ -83,16 +80,38 @@ export default function Responses() {
     },
   });
 
-  const { mutate: handleGenerateReport, isLoading: isResponseLoading } = useMutation(
-    async (id: number) => {
-      setLoadingReportId(id);
-      const response = await fetchRequest<null, ReportData>(`/responses/${id}/report`, {
-        method: "GET",
-      });
+  const { mutate: handleGenerateAverageReport, isLoading: isLoadingAverageResponses } = useMutation(
+    async () => {
+      const response = await fetchRequest<null, AverageResponses[]>("/responses/average", { method: "GET" });
       return response.body;
     },
     {
       onSuccess: (data) => {
+        setAverageResponses(data);
+        setAverageOpen(true);
+      },
+      onError: (error) => {
+        enqueueSnackbar(
+          `Erro ao gerar relatório: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+          { variant: "error" }
+        );
+      },
+    }
+  )
+
+  // Fazer parecido com isso quando for obter as orientações (quando clicar faz a request)
+  const { mutate: handleGenerateReport, isLoading: isResponseLoading } = useMutation(
+    async (id: number) => {
+      setLoadingReportId(id);
+      const response = await fetchRequest<null, DetailedResponse>(`/responses/${id}/report`, {
+        method: "GET",
+      });
+
+      return response.body;
+    },
+    {
+      onSuccess: (data) => {
+        console.log("Resposta do relatório:", data);
         setJsonData(data);
       },
       onError: (error) => {
@@ -104,19 +123,28 @@ export default function Responses() {
     }
   );  
 
+  console.log("Objeto enviado:", jsonData)
+
   return (
     <Box sx={{ padding: 4 }}>
-      <Backdrop open={isResponseLoading} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+      <Backdrop open={isLoading || isResponseLoading || isLoadingAverageResponses} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <CircularProgress color="inherit" />
       </Backdrop>
       <Typography variant="h4" component="h1" gutterBottom>
         Relatórios dos Usuários
       </Typography>
-      {isLoading && (
-        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 2 }}>
-          <CircularProgress />
-        </Box>
-      )}
+      <Box sx={{ mb: 2 }}>
+        <Button
+          variant="contained"
+          color="success"
+          onClick={() => {
+            handleGenerateAverageReport();
+          }}
+          disabled={isLoadingAverageResponses}
+        >
+          {isLoadingAverageResponses ? <CircularProgress size={20} /> : "Ver Relatório Geral (Média)"}
+        </Button>
+      </Box>
       <Box sx={{ display: "grid", gap: 2 }}>
         {responses.map((response) => (
           <Card key={response.id} variant="outlined" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 2 }}>
@@ -143,9 +171,8 @@ export default function Responses() {
                 color="secondary"
                 onClick={() => {
                   handleGenerateReport(response.id);
-                  setUsername(response.user.name);
                 }}
-                disabled={response.responseOrientations.length === 0 || loadingReportId === response.id}
+                disabled={loadingReportId === response.id}
               >
                 {loadingReportId === response.id ? <CircularProgress size={25} sx={{ color: "#FFF", marginInline: "4.5rem" }} /> : "Visualizar Relatório"}              
               </Button>
@@ -156,7 +183,14 @@ export default function Responses() {
       <ReportDialog open={jsonData !== null} jsonData={jsonData} onClose={() => {
         setJsonData(null);
         setLoadingReportId(null); 
-      }} username={username} />
+      }}/>
+      <AverageDialog 
+        open={averageOpen}
+        onClose={() => {
+          setAverageOpen(false);
+        }}
+        data={averageResponses}
+      />
     </Box>
   );
 }
