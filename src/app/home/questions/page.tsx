@@ -8,14 +8,17 @@ import { useSnackbar } from "notistack";
 import fetchRequest from "@/utils/fetchRequest";
 import DeleteConfirmationDialog from "@/components/DeleteDialog";
 
+interface UserGroup {
+  id: number;
+  text: string;
+  description: string;
+}
+
 interface Question {
   id: number;
   text: string;
-  user_group: {
-    id: number;
-    text: string;
-    description: string;
-  }
+  last_change: string;
+  user_groups: UserGroup[];
 }
 
 export default function Questions() {
@@ -111,7 +114,7 @@ export default function Questions() {
                 {question.text}
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                Grupo de Usuário: {question.user_group.text}
+                Grupos de Usuário: {question.user_groups.map((group) => group.text).join(', ')}
               </Typography>
             </CardContent>
             <CardActions>
