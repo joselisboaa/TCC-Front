@@ -57,6 +57,14 @@ interface Response {
   user: User;
 }
 
+interface Orientation {
+  id: number;
+  text: string;
+  threshold: number;
+  question_id: number;
+  question: Question;
+}
+
 interface AverageResponses {
   id: number;
   text: string;
@@ -70,6 +78,7 @@ export default function Responses() {
   const [loadingReportId, setLoadingReportId] = useState<number | null>(null);
   const [averageOpen, setAverageOpen] = useState(false);
   const [averageResponses, setAverageResponses] = useState<AverageResponses[]>([]);
+  const [orientations, setOrientations] = useState<Orientation[]>([]);
   const { enqueueSnackbar } = useSnackbar();
 
   const { data: responses = [], isLoading } = useQuery<Response[]>({
@@ -99,6 +108,27 @@ export default function Responses() {
     }
   )
 
+  const { mutate: handleFetchOrientations, isLoading: isOrientationsLoading } = useMutation(
+    async () => {
+      const response = await fetchRequest<null, Orientation[]>(`/orientations`, {
+        method: "GET",
+      });
+
+      return response.body;
+    },
+    {
+      onSuccess: (data) => {
+        setOrientations(data);
+      },
+      onError: (error) => {
+        enqueueSnackbar(
+          `Erro ao gerar relatório: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+          { variant: "error" }
+        );
+      },
+    }
+  );  
+
   // Fazer parecido com isso quando for obter as orientações (quando clicar faz a request)
   const { mutate: handleGenerateReport, isLoading: isResponseLoading } = useMutation(
     async (id: number) => {
@@ -111,7 +141,6 @@ export default function Responses() {
     },
     {
       onSuccess: (data) => {
-        console.log("Resposta do relatório:", data);
         setJsonData(data);
       },
       onError: (error) => {
@@ -123,11 +152,9 @@ export default function Responses() {
     }
   );  
 
-  console.log("Objeto enviado:", jsonData)
-
   return (
     <Box sx={{ padding: 4 }}>
-      <Backdrop open={isLoading || isResponseLoading || isLoadingAverageResponses} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+      <Backdrop open={isLoading || isResponseLoading || isLoadingAverageResponses || isOrientationsLoading} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <CircularProgress color="inherit" />
       </Backdrop>
       <Typography variant="h4" component="h1" gutterBottom>
@@ -139,10 +166,11 @@ export default function Responses() {
           color="success"
           onClick={() => {
             handleGenerateAverageReport();
+            handleFetchOrientations();
           }}
           disabled={isLoadingAverageResponses}
         >
-          {isLoadingAverageResponses ? <CircularProgress size={20} /> : "Ver Relatório Geral (Média)"}
+          {isLoadingAverageResponses ? <CircularProgress size={20} /> : "Ver Relatório Geral"}
         </Button>
       </Box>
       <Box sx={{ display: "grid", gap: 2 }}>
@@ -186,6 +214,7 @@ export default function Responses() {
       }}/>
       <AverageDialog 
         open={averageOpen}
+        orientations={orientations}
         onClose={() => {
           setAverageOpen(false);
         }}
