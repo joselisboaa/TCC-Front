@@ -152,22 +152,11 @@ export default function QuestionForm() {
       if (!userId) throw new Error("ID do usuário não encontrado");
 
       const requestBody = {
-        answers: Object.entries(data.answers).map(([questionId, answer]) => ({
-          id: answer.answer_id,
-          text: formData
-            ?.find((q) => q.id === Number(questionId))
-            ?.answers.find((a) => a.id === answer.answer_id)?.text || "",
-          other: formData
-            ?.find((q) => q.id === Number(questionId))
-            ?.answers.find((a) => a.id === answer.answer_id)?.other || false,
-          question_id: Number(questionId),
-        })),
         user_id: userId,
-        other_answers: Object.fromEntries(
-          Object.entries(data.answers)
-            .filter(([_, answer]) => answer.other_text)
-            .map(([questionId, answer]) => [questionId, answer.other_text || ""])
-        ),
+        questions: data.answers.map((answer) => ({
+          question_id: answer.question_id,
+          answer_id: answer.answer_id,
+        })),
       };
 
       await fetchRequest("/responses", {
@@ -177,7 +166,7 @@ export default function QuestionForm() {
     },
     {
       onSuccess: () => {
-        alert("Respostas enviadas com sucesso!");
+        enqueueSnackbar("Respostas enviadas com sucesso!", { variant: "success" });
       },
       onError: (error) => {
         enqueueSnackbar(`Erro ao enviar respostas: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
@@ -216,9 +205,9 @@ export default function QuestionForm() {
       question.answers.some(answer => new Date(answer.last_change).getTime() > new Date(lastResponseTimestamp).getTime())
     });
     
-    if (!hasChanges) {
-      return <Typography color="secondary" variant="h6" align="center">Você já respondeu este formulário.</Typography>;
-    }
+    // if (!hasChanges) {
+    //   return <Typography color="secondary" variant="h6" align="center">Você já respondeu este formulário.</Typography>;
+    // }
   }
 
   return (
