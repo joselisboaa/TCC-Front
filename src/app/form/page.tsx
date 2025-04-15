@@ -16,13 +16,13 @@ import {
   Paper,
   Box,
   FormHelperText,
+  Backdrop,
 } from "@mui/material";
 import fetchRequest from "@/utils/fetchRequest";
 import { useQuery, useMutation } from "react-query";
 import Cookies from "js-cookie";
 import { jwtVerify } from "jose";
 import { useSnackbar } from "notistack";
-
 
 interface Answer {
   id: number;
@@ -78,7 +78,6 @@ const responseSchema = yup.object().shape({
     .required("Pelo menos uma resposta é obrigatória"),
 });
 
-
 async function getUserIdFromToken(): Promise<number | null> {
   const token = Cookies.get("jwt");
   if (!token) return null;
@@ -86,7 +85,6 @@ async function getUserIdFromToken(): Promise<number | null> {
   try {
     const secret = new TextEncoder().encode(process.env.NEXT_PUBLIC_JWT_SECRET);
     const { payload } = await jwtVerify(token, secret);
-
     const user = payload.user as User;
     return user.id;
   } catch (error) {
@@ -104,50 +102,64 @@ function useUserId() {
 
 export default function QuestionForm() {
   const { enqueueSnackbar } = useSnackbar();
-  
-  const { control, handleSubmit, reset, formState: { errors }, watch } = useForm<FormValues>({
+
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors },
+    watch,
+  } = useForm<FormValues>({
     resolver: yupResolver(responseSchema),
     defaultValues: {
       answers: [],
     },
   });
-  
+
   const { data: userId, isLoading: isUserIdLoading, error: userIdError } = useUserId();
-  
+
   const { data: formData, isLoading: isFormDataLoading, error: formDataError } = useQuery<Question[], Error>(
     ["formData", userId],
     async () => {
       if (!userId) throw new Error("ID do usuário não fornecido");
-      
       const res = await fetchRequest<any, { body: Question[] }>(`/users/${userId}/form`);
-      if (!Array.isArray(res.body)) {
-        throw new Error("Dados do formulário inválidos");
-      }
-      return res.body;
+      if (!Array.isArray(res.body)) throw new Error("Dados do formulário inválidos");
+
+    const uniqueQuestions = res.body
+    .filter((question) => Array.isArray(question.answers) && question.answers.length > 0)
+    .reduce((acc: Question[], current: Question) => {
+      const exists = acc.find(q => q.id === current.id);
+      return exists ? acc : [...acc, current];
+    }, []);
+
+      return uniqueQuestions;
     },
     {
       enabled: !!userId,
       onError: (error) => {
-        enqueueSnackbar(`Erro ao carregar formulário: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
+        enqueueSnackbar(
+          `Erro ao carregar formulário: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+          { variant: "error" }
+        );
       },
     }
   );
 
-  const { data: userResponses } = useQuery<Response[]>(["responses", userId], 
+  const { data: userResponses } = useQuery<Response[]>(["responses", userId],
     async () => {
       if (!userId) return null;
       const res = await fetchRequest<Response, any>(`/responses?user-id=${userId}`);
       return res.body;
-    }, { enabled: !!userId }
+    }, {
+      enabled: !!userId
+    }
   );
-  
+
   const handleClear = () => {
-    reset({
-      answers: [],
-    });
+    reset({ answers: [] });
   };
 
-  const submitMutation = useMutation(
+  const { isLoading: isSubmittingForm, mutate: submitMutation } = useMutation(
     async (data: FormValues) => {
       if (!userId) throw new Error("ID do usuário não encontrado");
 
@@ -169,14 +181,17 @@ export default function QuestionForm() {
         enqueueSnackbar("Respostas enviadas com sucesso!", { variant: "success" });
       },
       onError: (error) => {
-        enqueueSnackbar(`Erro ao enviar respostas: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
+        enqueueSnackbar(`Erro ao enviar respostas: ${error instanceof Error ? error.message : "Erro desconhecido"}`, {
+          variant: "error",
+        });
       },
     }
   );
 
   const onSubmit = (data: FormValues) => {
-    submitMutation.mutate(data);
+    submitMutation(data);
   };
+  
 
   if (!userResponses || isUserIdLoading || isFormDataLoading) {
     return (
@@ -185,7 +200,7 @@ export default function QuestionForm() {
       </Box>
     );
   }
-
+  
   if (userIdError) {
     return <Typography color="error">Erro ao validar o token: {userIdError.message}</Typography>;
   }
@@ -198,20 +213,11 @@ export default function QuestionForm() {
     return <Typography color="error">Nenhum dado encontrado.</Typography>;
   }
 
-  if (userResponses && userResponses.length > 0) {
-    const lastResponseTimestamp = new Date(userResponses[userResponses.length - 1].timestamp);
-    const hasChanges = formData.some(question => {
-      return new Date(question.last_change).getTime() > new Date(lastResponseTimestamp).getTime() ||
-      question.answers.some(answer => new Date(answer.last_change).getTime() > new Date(lastResponseTimestamp).getTime())
-    });
-    
-    // if (!hasChanges) {
-    //   return <Typography color="secondary" variant="h6" align="center">Você já respondeu este formulário.</Typography>;
-    // }
-  }
-
   return (
     <Container maxWidth="sm" className="flex items-center justify-center h-fit">
+      <Backdrop open={isSubmittingForm} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+        <CircularProgress color="inherit" />
+      </Backdrop>
       <Paper elevation={3} className="p-6 w-full">
         <form onSubmit={handleSubmit(onSubmit)}>
           <Typography id="form-title" variant="h5" className="mb-5" gutterBottom align="center">
@@ -223,57 +229,60 @@ export default function QuestionForm() {
                 {question.text}
               </Typography>
               <FormControl component="fieldset" error={!!errors.answers?.[questionIndex]?.answer_id}>
-              <Controller
-                name={`answers`}
-                control={control}
-                render={({ field }) => (
-                  <RadioGroup
-                    value={field.value.find((a) => a.question_id === question.id)?.answer_id || ""}
-                    onChange={(e) => {
-                      const selectedAnswerId = Number(e.target.value);
-                      const selectedAnswer = question.answers.find((a) => a.id === selectedAnswerId);
+                <Controller
+                  name={`answers`}
+                  control={control}
+                  render={({ field }) => (
+                    <RadioGroup
+                      value={field.value.find((a) => a.question_id === question.id)?.answer_id || ""}
+                      onChange={(e) => {
+                        const selectedAnswerId = Number(e.target.value);
+                        const selectedAnswer = question.answers.find((a) => a.id === selectedAnswerId);
 
-                      field.onChange([
-                        ...field.value.filter((a) => a.question_id !== question.id), // Remove a resposta anterior da mesma pergunta
-                        {
-                          question_id: question.id,
-                          answer_id: selectedAnswerId,
-                          other_text: selectedAnswer?.other ? "" : undefined, // Garante que `other_text` seja tratado
-                        },
-                      ]);
-                    }}
-                  >
-                    {question.answers.map((answer) => (
-                      <div key={answer.id}>
-                        <FormControlLabel
-                          value={answer.id}
-                          control={<Radio sx={{ color: "#7E57C2" }} />}
-                          label={answer.text}
-                        />
-                        {answer.other && watch(`answers`).find((a) => a.question_id === question.id)?.answer_id === answer.id && (
-                          <Controller
-                            name={`answers.${question.id}.other_text`}
-                            control={control}
-                            render={({ field: otherField }) => (
-                              <TextField
-                                {...otherField}
-                                fullWidth
-                                variant="outlined"
-                                size="small"
-                                placeholder="Digite sua resposta"
-                                sx={{ mt: 1 }}
+                        field.onChange([
+                          ...field.value.filter((a) => a.question_id !== question.id),
+                          {
+                            question_id: question.id,
+                            answer_id: selectedAnswerId,
+                            other_text: selectedAnswer?.other ? "" : undefined,
+                          },
+                        ]);
+                      }}
+                    >
+                      {question.answers.map((answer) => (
+                        <div key={answer.id}>
+                          <FormControlLabel
+                            value={answer.id}
+                            control={<Radio sx={{ color: "#7E57C2" }} />}
+                            label={answer.text}
+                          />
+                          {answer.other &&
+                            watch("answers").find((a) => a.question_id === question.id)?.answer_id === answer.id && (
+                              <Controller
+                                name={`answers.${question.id}.other_text`}
+                                control={control}
+                                render={({ field: otherField }) => (
+                                  <TextField
+                                    {...otherField}
+                                    fullWidth
+                                    variant="outlined"
+                                    size="small"
+                                    placeholder="Digite sua resposta"
+                                    sx={{ mt: 1 }}
+                                  />
+                                )}
                               />
                             )}
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </RadioGroup>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  )}
+                />
+                {errors.answers && (
+                  <FormHelperText sx={{ fontSize: 14 }} error>
+                    {errors.answers?.message}
+                  </FormHelperText>
                 )}
-              />
-              {errors.answers && (
-                <FormHelperText sx={{fontSize: 14}} error>{errors.answers?.message}</FormHelperText>
-              )}
               </FormControl>
             </div>
           ))}
@@ -290,9 +299,9 @@ export default function QuestionForm() {
                 "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" },
               }}
               type="submit"
-              disabled={submitMutation.isLoading}
+              disabled={isSubmittingForm}
             >
-              {submitMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
+              {isSubmittingForm ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
             </Button>
             <Button
               variant="contained"
