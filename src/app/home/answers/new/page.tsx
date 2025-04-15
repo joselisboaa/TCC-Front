@@ -12,7 +12,7 @@ import fetchRequest from "@/utils/fetchRequest";
 interface Question {
   id: number;
   text: string;
-  user_group: { id: number; text: string };
+  user_groups: { id: number; text: string }[];
 }
 
 const schema = yup.object().shape({
@@ -23,10 +23,12 @@ const schema = yup.object().shape({
       yup.object().shape({
         id: yup.number().required("A questão é obrigatória"),
         text: yup.string().required("A questão é obrigatória"),
-        user_group: yup.object().shape({
-          id: yup.number().required("O grupo de usuários é obrigatório"),
-          text: yup.string().required("O grupo de usuários é obrigatório"),
-        }),
+        user_groups: yup.array().of(
+          yup.object().shape({
+            id: yup.number().required(),
+            text: yup.string().required(),
+          })
+        )        
       })
     )
     .min(1, "Selecione pelo menos uma pergunta")
@@ -49,6 +51,8 @@ export default function CreateAnswer() {
       value: 0,
     },
   });
+
+  console.log(errors)
 
   const { data: questions, isLoading: isFetchingQuestions } = useQuery<Question[]>(
     "questions",
@@ -87,8 +91,8 @@ export default function CreateAnswer() {
   );
 
   return (
-    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "fit" }}>
-      <Paper elevation={4} sx={{ padding: 4, width: "100%", maxWidth: 420, borderRadius: 3, textAlign: "center" }}>
+    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", padding: 2 }}>
+      <Paper elevation={4} sx={{ padding: 4, width: "auto", maxWidth: "50vw", borderRadius: 3, textAlign: "center" }}>
         <Typography variant="h4" component="h1" gutterBottom sx={{ color: "#5E3BEE" }}>
           Criar Resposta
         </Typography>
@@ -111,17 +115,51 @@ export default function CreateAnswer() {
                 <Autocomplete
                   {...field}
                   multiple
-                  options={questions || []}
-                  getOptionLabel={(option) => `${option.text} ${option.user_group?.text ? "(" + option.user_group.text + ")" : ""}`}
-                  onChange={(_, newValue) => field.onChange(newValue)}
+                  options={questions?.filter(question => 
+                    !field.value?.some(selected => selected.id === question.id)
+                  ) || []}
+                  getOptionLabel={(option) => option.text}
+                  onChange={(_, newValue) => {
+                    const uniqueValues = Array.from(new Set(newValue.map(item => item.id)))
+                      .map(id => newValue.find(item => item.id === id));
+                    field.onChange(uniqueValues);
+                  }}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  sx={{
+                    width: '100%',
+                    '& .MuiAutocomplete-inputRoot': {
+                      flexWrap: 'wrap',
+                      alignItems: 'flex-start',
+                      padding: '4px 8px',
+                      minHeight: '56px',
+                    },
+                    '& .MuiAutocomplete-tag': {
+                      margin: '2px',
+                      maxWidth: 'none',
+                    },
+                  }}
                   renderInput={(params) => (
                     <TextField
                       {...params}
                       label="Selecionar Perguntas"
-                      fullWidth
-                      variant="outlined"
-                      error={!!errors.question} 
+                      error={!!errors.question}
                       helperText={errors.question?.message}
+                      sx={{
+                        width: '100%',
+                        "& .MuiInputBase-root": {
+                          display: "flex",
+                          flexWrap: "wrap",           
+                          alignItems: "flex-start",
+                          paddingTop: '6px',
+                          maxWidth: "100%",            
+                          boxSizing: "border-box",
+                        },
+                        "& .MuiAutocomplete-tag": {
+                          maxWidth: "100%",            
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        },
+                      }}
                       InputProps={{
                         ...params.InputProps,
                         endAdornment: (
@@ -132,15 +170,9 @@ export default function CreateAnswer() {
                         ),
                       }}
                     />
-                  )}
+                  )}                  
                 />
               )}
-            />
-
-            <Controller
-              name="value"
-              control={control}
-              render={({ field }) => <TextField {...field} label="Valor da Resposta" fullWidth variant="outlined" error={!!errors.value} helperText={errors.value?.message}/>}
             />
 
             <Controller
