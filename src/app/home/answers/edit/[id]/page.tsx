@@ -10,14 +10,14 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import fetchRequest from "@/utils/fetchRequest";
 
 interface UserGroup {
-  text?: string;
+  id: number;
+  text: string;
 }
 
 interface Question {
   id: number;
   text: string;
-  user_group?: UserGroup;
-  user_group_id?: number;
+  user_groups?: UserGroup[];
 }
 
 interface Answer {
@@ -56,7 +56,7 @@ export default function EditAnswer() {
       questions: [{ 
         id: 0, 
         text: "",
-        user_group: { text: "" }
+        user_groups: [{ text: "" }]
       }],
       other: false,
       value: 0
@@ -98,7 +98,7 @@ export default function EditAnswer() {
         setValue("questions", data.questions.map(question => ({
           id: question.id,
           text: question.text,
-          user_group: { id: question.user_group_id, text: "" },
+          user_group: { id: question.user_groups, text: "" },
           last_change: ""
         })));
       
@@ -143,8 +143,20 @@ export default function EditAnswer() {
   }
 
   return (
-    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "fit" }}>
-      <Paper elevation={4} sx={{ padding: 4, width: "100%", maxWidth: 420, borderRadius: 3, textAlign: "center" }}>
+    <Box sx={{ 
+      display: "flex", 
+      justifyContent: "center", 
+      alignItems: "center", 
+      minHeight: "100vh",
+      padding: 2
+    }}>
+      <Paper elevation={4} sx={{ 
+        padding: 4,
+        width: "auto",
+        maxWidth: "50vw",
+        borderRadius: 3,
+        textAlign: "center"
+      }}>
         <Typography variant="h4" component="h1" gutterBottom sx={{ color: "#5E3BEE" }}>
           Editar Resposta
         </Typography>
@@ -169,26 +181,38 @@ export default function EditAnswer() {
                 <Autocomplete
                   {...field}
                   multiple
-                  options={questions || []}
-                  getOptionLabel={(option) => `${option.text} ${option.user_group?.text ? "(" + option.user_group.text + ")" : ""}`}
-                  onChange={(_, newValue) => field.onChange(newValue)}
+                  options={questions?.filter(question => 
+                    !field.value?.some(selected => selected.id === question.id)
+                  ) || []}
+                  getOptionLabel={(option) => option.text}
+                  onChange={(_, newValue) => {
+                    const uniqueValues = Array.from(new Set(newValue.map(item => item.id)))
+                      .map(id => newValue.find(item => item.id === id));
+                    field.onChange(uniqueValues);
+                  }}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  sx={{
+                    '& .MuiAutocomplete-tag': {
+                      maxWidth: '100%',
+                      margin: '2px',
+                      '& .MuiChip-label': {
+                        whiteSpace: 'normal'
+                      }
+                    }
+                  }}
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Selecionar Perguntas"
-                      fullWidth
-                      variant="outlined"
-                      error={!!errors.questions} 
-                      helperText={errors.questions?.message}
-                      InputProps={{
-                        ...params.InputProps,
-                        endAdornment: (
-                          <>
-                            {isFetchingQuestions ? <CircularProgress size={20} /> : null}
-                            {params.InputProps.endAdornment}
-                          </>
-                        ),
+                      sx={{
+                        ".MuiInputBase-root": {
+                          flexWrap: "wrap",
+                          alignItems: "flex-start",
+                          minHeight: "80px",
+                        }
                       }}
+                      label="Selecionar Perguntas"
+                      error={!!errors.questions}
+                      helperText={errors.questions?.message}
                     />
                   )}
                 />
