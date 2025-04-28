@@ -23,6 +23,7 @@ import { useQuery, useMutation } from "react-query";
 import Cookies from "js-cookie";
 import { jwtVerify } from "jose";
 import { useSnackbar } from "notistack";
+import { useState } from "react";
 
 interface Answer {
   id: number;
@@ -74,7 +75,6 @@ const responseSchema = yup.object().shape({
         other_text: yup.string().nullable(),
       })
     )
-    .min(1, "Pelo menos uma resposta é obrigatória")
     .required("Pelo menos uma resposta é obrigatória"),
 });
 
@@ -102,6 +102,7 @@ function useUserId() {
 
 export default function QuestionForm() {
   const { enqueueSnackbar } = useSnackbar();
+  const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
 
   const {
     control,
@@ -189,8 +190,20 @@ export default function QuestionForm() {
   );
 
   const onSubmit = (data: FormValues) => {
+    const unansweredQuestions = formData?.filter(
+      (question) => !data.answers.find((a) => a.question_id === question.id)
+    );
+  
+    if (unansweredQuestions && unansweredQuestions.length > 0) {
+      const msg = "Você deve responder todas as perguntas antes de enviar.";
+      setFormErrorMessage(msg);
+      enqueueSnackbar(msg, { variant: "warning" });
+      return;
+    }
+  
+    setFormErrorMessage(null);
     submitMutation(data);
-  };
+  };  
   
 
   if (!userResponses || isUserIdLoading || isFormDataLoading) {
@@ -200,7 +213,7 @@ export default function QuestionForm() {
       </Box>
     );
   }
-  
+
   if (userIdError) {
     return <Typography color="error">Erro ao validar o token: {userIdError.message}</Typography>;
   }
@@ -220,6 +233,9 @@ export default function QuestionForm() {
       </Backdrop>
       <Paper elevation={3} className="p-6 w-full">
         <form onSubmit={handleSubmit(onSubmit)}>
+        <Box role="alert" aria-live="assertive" sx={{ position: "absolute", left: "-9999px" }}>
+          {formErrorMessage && <Typography>{formErrorMessage}</Typography>}
+        </Box>
           <Typography id="form-title" variant="h5" className="mb-5" gutterBottom align="center">
             Questionário
           </Typography>
