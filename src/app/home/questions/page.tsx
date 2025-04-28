@@ -19,6 +19,14 @@ interface Question {
   text: string;
   last_change: string;
   user_groups: UserGroup[];
+  answers: Answer[];
+}
+
+interface Answer {
+  id: number;
+  text: string;
+  other: boolean;
+  value: number;
 }
 
 export default function Questions() {
@@ -85,6 +93,8 @@ export default function Questions() {
     }
   };
 
+  const hasQuestionsWithoutAnswers = questions?.some((q) => q.answers.length === 0);
+
   return (
     <Box sx={{ padding: 4 }}>
       <Backdrop open={isLoadingDelete} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
@@ -93,6 +103,13 @@ export default function Questions() {
       <Typography variant="h4" component="h1" gutterBottom>
         Questões
       </Typography>
+
+      {hasQuestionsWithoutAnswers && (
+        <Typography variant="body1" sx={{ color: "error.main", mb: 2 }}>
+          Atenção: Questões sem respostas não serão exibidas no formulário.
+        </Typography>
+      )}
+
       <Button
         variant="contained"
         color="primary"
@@ -110,8 +127,12 @@ export default function Questions() {
         {questions?.map((question) => (
           <Card key={question.id} variant="outlined" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 2 }}>
             <CardContent sx={{ flex: 1 }}>
-              <Typography variant="h6" component="div">
-                {question.text}
+              <Typography
+                variant="h6"
+                component="div"
+                sx={{ color: question.answers.length === 0 ? "error.main" : "text.primary" }}
+              >
+                {question.answers.length === 0 ? `${question.text} (Questão sem respostas)` : question.text}
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Grupos de Usuário: {question.user_groups.map((group) => group.text).join(', ')}
