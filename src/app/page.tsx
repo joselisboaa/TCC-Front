@@ -7,6 +7,8 @@ import Cookies from "js-cookie";
 import fetchRequest from "../utils/fetchRequest";
 import useVerifyAuth from "@/utils/hooks/useVerifyAuth";
 import { Backdrop, CircularProgress, Button, Paper, Typography, Box } from "@mui/material";
+import { useSnackbar } from "notistack";
+import AccessibleAlert from "@/components/AccessibleAlert";
 
 
 const SearchHandler = ({ router }: { router: ReturnType<typeof useRouter> }) => {
@@ -38,6 +40,17 @@ const LoginPage = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const { enqueueSnackbar } = useSnackbar();
+
+  useEffect(() => {
+    const expired = Cookies.get("session_expired");
+    if (expired) {
+      enqueueSnackbar("Sua sessão expirou. Faça login novamente.", { variant: "warning" });
+      Cookies.remove("session_expired");
+      setSessionExpired(true);
+    }
+  }, []);
 
   const myJwt = Cookies.get("jwt");
   const { data, isLoading: isVerifying, isError } = useVerifyAuth(myJwt);
@@ -78,6 +91,13 @@ const LoginPage = () => {
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-gray-100">
+      {sessionExpired && (
+        <AccessibleAlert
+          message="Sua sessão expirou por inatividade ou problemas de autenticação. Por favor, faça login novamente."
+          severity="warning"
+        />
+      )}
+
       <Paper className="flex flex-col items-center p-8 rounded-lg shadow-lg text-center w-full max-w-4xl h-full min-h-screen md:min-h-0 md:h-auto">
         <Suspense fallback={
           <Backdrop open={isVerifying} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
