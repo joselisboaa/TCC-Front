@@ -19,7 +19,6 @@ interface UserForm {
   name?: string;
   phone_number: string;
   email: string;
-  password: string;
   user_groups: UserGroup[];
   isAdmin: boolean;
 }
@@ -28,7 +27,6 @@ const schema = yup.object({
   name: yup.string().optional(),
   phone_number: yup.string().matches(/^(?:\([1-9]{2}\)|[1-9]{2})[-.\s]?9?[6-9]\d{3}[-.\s]?\d{4}$/, "Formato do telefone deve ser: (99) 99999-9999").required("Número de telefone é obrigatório"),
   email: yup.string().email("Email inválido").required("Email é obrigatório"),
-  password: yup.string().matches(/^(?=.*\d)(?=.*[A-Z])(?=.*[a-z])[\da-zA-Z].{7,254}$/, "A senha deve conter pelo menos uma letra maiúscula, uma letra minúscula, um número e ter entre 8 e 255 caracteres").required("Senha é obrigatória"),
   user_groups: yup.array().of(
     yup.object({
       id: yup.number().required(),
@@ -54,7 +52,6 @@ export default function CreateUser() {
       name: "",
       phone_number: "",
       email: "",
-      password: "",
       user_groups: [],
       isAdmin: false,
     },
@@ -149,14 +146,6 @@ export default function CreateUser() {
             control={control}
             render={({ field }) => (
               <TextField {...field} label="Email" fullWidth variant="outlined" error={!!errors.email} helperText={errors.email?.message} />
-            )}
-          />
-
-          <Controller
-            name="password"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} label="Senha" fullWidth variant="outlined" error={!!errors.password} helperText={errors.password?.message} />
             )}
           />
           
