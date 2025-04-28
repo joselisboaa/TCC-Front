@@ -15,6 +15,14 @@ export async function middleware(req: NextRequest) {
   try {
     const secret = new TextEncoder().encode(JWT_SECRET);
     const { payload } = await jwtVerify(jwtToken, secret);
+    const currentTime = Math.floor(Date.now() / 1000);
+
+    if (payload.exp && currentTime > payload.exp) {
+      const response = NextResponse.redirect(new URL('/', req.url));
+      response.cookies.set('jwt', '', { maxAge: 0 });
+      return response;
+    }
+    
 
     const user = payload.user as {
       id: number;
@@ -43,7 +51,13 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   } catch (error) {
     console.error("Erro ao validar JWT:", error);
-    return NextResponse.redirect(new URL('/', req.url));
+
+    const response = NextResponse.redirect(new URL('/', req.url));
+
+    response.cookies.set('jwt', '', { maxAge: 0 });
+    response.cookies.set('session_expired', '1', { maxAge: 10 });
+    
+    return response;
   }
 }
 
