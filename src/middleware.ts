@@ -22,13 +22,11 @@ export async function middleware(req: NextRequest) {
       response.cookies.set('jwt', '', { maxAge: 0 });
       return response;
     }
-    
 
     const user = payload.user as {
       id: number;
-      phone_number: string;
+      phone_number: string | null;
       email: string;
-      password: string;
       user_groups: { id: number; text: string; description: string }[];
     };
 
@@ -40,11 +38,32 @@ export async function middleware(req: NextRequest) {
       group.text.toLowerCase() === "administrador"
     );
 
-    if (!isAdmin && req.nextUrl.pathname.startsWith('/home')) {
+    const isUnregistered = user.user_groups.some(group =>
+      group.text.toLowerCase() === "usuário sem cadastro"
+    );
+
+    const path = req.nextUrl.pathname;
+
+    if (path.startsWith('/new-user') && !isUnregistered) {
+      return NextResponse.redirect(new URL('/home', req.url));
+    }
+
+    if (isUnregistered) {
+      if (!path.startsWith('/new-user')) {
+        return NextResponse.redirect(new URL('/new-user', req.url));
+      }
+      return NextResponse.next();
+    }
+
+    if (isAdmin && path.startsWith('/form')) {
+      return NextResponse.redirect(new URL('/home', req.url));
+    }
+
+    if (!isAdmin && path.startsWith('/home')) {
       return NextResponse.redirect(new URL('/form', req.url));
     }
 
-    if (adminRoutes.some(route => req.nextUrl.pathname.startsWith(route)) && !isAdmin) {
+    if (adminRoutes.some(route => path.startsWith(route)) && !isAdmin) {
       return NextResponse.redirect(new URL('/form', req.url));
     }
 
@@ -53,14 +72,13 @@ export async function middleware(req: NextRequest) {
     console.error("Erro ao validar JWT:", error);
 
     const response = NextResponse.redirect(new URL('/', req.url));
-
     response.cookies.set('jwt', '', { maxAge: 0 });
     response.cookies.set('session_expired', '1', { maxAge: 10 });
-    
+
     return response;
   }
 }
 
 export const config = {
-  matcher: ['/home/:path*'],
+  matcher: ['/home/:path*', '/form', '/new-user'], 
 };
