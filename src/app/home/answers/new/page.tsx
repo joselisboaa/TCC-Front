@@ -52,8 +52,6 @@ export default function CreateAnswer() {
     },
   });
 
-  console.log(errors)
-
   const { data: questions, isLoading: isFetchingQuestions } = useQuery<Question[]>(
     "questions",
     async () => {
