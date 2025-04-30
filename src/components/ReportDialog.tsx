@@ -27,6 +27,7 @@ interface Answer {
   value: number;
   other: boolean;
   questions: Question[];
+  last_change: string;
 }
 
 interface AnsweredQuestion {
