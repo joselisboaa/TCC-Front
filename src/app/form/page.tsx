@@ -24,12 +24,16 @@ import Cookies from "js-cookie";
 import { jwtVerify } from "jose";
 import { useSnackbar } from "notistack";
 import { useState } from "react";
+import ReportDialog from "@/components/ReportDialog";
+import { useRouter } from "next/navigation";
+
 
 interface Answer {
   id: number;
   text: string;
+  value: number;
   other: boolean;
-  question_id: number;
+  questions: Question[];
   last_change: string;
 }
 
@@ -53,6 +57,7 @@ interface User {
   id: number;
   phone_number: string;
   email: string;
+  name: string;
   password: string;
   user_groups: { id: number; text: string; description: string }[];
 }
@@ -63,6 +68,19 @@ interface Response {
   user: User;
   responseOrientations: [];
   timestamp: string;
+}
+
+interface AnsweredQuestion {
+  question: Question;
+  answer: Answer;
+}
+
+interface DetailedResponse {
+  id: number;
+  user_id: number;
+  timestamp: string;
+  user: User;
+  answeredQuestions: AnsweredQuestion[];
 }
 
 const responseSchema = yup.object().shape({
@@ -103,6 +121,10 @@ function useUserId() {
 export default function QuestionForm() {
   const { enqueueSnackbar } = useSnackbar();
   const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
+  const [jsonData, setJsonData] = useState<DetailedResponse | null>(null);
+  const [loadingReportId, setLoadingReportId] = useState<number | null>(null);
+  const router = useRouter();
+
 
   const {
     control,
@@ -145,6 +167,7 @@ export default function QuestionForm() {
       },
     }
   );
+
 
   const { data: userResponses } = useQuery<Response[]>(["responses", userId],
     async () => {
@@ -189,6 +212,28 @@ export default function QuestionForm() {
     }
   );
 
+  const { mutate: handleGenerateReport, isLoading: isResponseLoading } = useMutation(
+    async (id: number) => {
+      setLoadingReportId(id);
+      const response = await fetchRequest<null, DetailedResponse>(`/responses/${id}/report`, {
+        method: "GET",
+      });
+
+      return response.body;
+    },
+    {
+      onSuccess: (data) => {
+        setJsonData(data);
+      },
+      onError: (error) => {
+        enqueueSnackbar(
+          `Erro ao gerar relatório: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+          { variant: "error" }
+        );
+      },
+    }
+  );  
+
   const onSubmit = (data: FormValues) => {
     const unansweredQuestions = formData?.filter(
       (question) => !data.answers.find((a) => a.question_id === question.id)
@@ -224,6 +269,53 @@ export default function QuestionForm() {
 
   if (!formData || formData.length === 0) {
     return <Typography color="error">Nenhum dado encontrado.</Typography>;
+  }
+
+  if (userResponses && userResponses.length > 0) {
+    const lastResponseTimestamp = new Date(userResponses[userResponses.length - 1].timestamp);
+
+    const hasChanges = formData.some(question => {
+      return (
+        new Date(question.last_change).getTime() > lastResponseTimestamp.getTime() ||
+        question.answers.some(answer => new Date(answer.last_change).getTime() > lastResponseTimestamp.getTime())
+      );
+    });
+
+    if (!hasChanges) {
+      return (
+        <Container maxWidth="sm" className="flex items-center justify-center h-fit">
+          <Paper elevation={3} className="p-6 w-full text-center">
+            <Typography color="secondary" variant="h6">
+              Você já respondeu este formulário.
+            </Typography>
+            <Box sx={{ display: "flex", gap: 2, justifyContent: "center", mt: 2 }}>
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={() => {
+                  handleGenerateReport(userResponses[userResponses.length - 1].id);
+                }}
+                disabled={loadingReportId === userResponses[userResponses.length - 1].id}
+              >
+                {loadingReportId === userResponses[userResponses.length - 1].id ? <CircularProgress size={25} sx={{ color: "#FFF", marginInline: "4.5rem" }} /> : "Visualizar Resposta"}              
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => router.push(`/form/edit/${userResponses[userResponses.length - 1].id}`)}
+                disabled={loadingReportId === userResponses[userResponses.length - 1].id}
+              >
+                {loadingReportId === userResponses[userResponses.length - 1].id ? <CircularProgress size={25} sx={{ color: "#FFF", marginInline: "4.5rem" }} /> : "Editar Resposta"}              
+              </Button>
+            </Box>
+          </Paper>
+          <ReportDialog open={jsonData !== null} jsonData={jsonData} onClose={() => {
+            setJsonData(null);
+            setLoadingReportId(null); 
+          }}/>
+        </Container>
+      );
+    }
   }
 
   return (
