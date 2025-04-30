@@ -26,6 +26,7 @@ interface Answer {
   id: number;
   text: string;
   value: number;
+  last_change: string;
   other: boolean;
   questions: Question[];
 }
@@ -129,7 +130,6 @@ export default function Responses() {
     }
   );  
 
-  // Fazer parecido com isso quando for obter as orientações (quando clicar faz a request)
   const { mutate: handleGenerateReport, isLoading: isResponseLoading } = useMutation(
     async (id: number) => {
       setLoadingReportId(id);
@@ -151,6 +151,7 @@ export default function Responses() {
       },
     }
   );  
+  
 
   return (
     <Box sx={{ padding: 4 }}>
