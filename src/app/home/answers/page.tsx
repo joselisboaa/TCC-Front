@@ -127,18 +127,22 @@ export default function Answers() {
   };
 
   return (
-    <Box sx={{ padding: 4 }}>
+    <Box sx={{ padding: { xs: 2, sm: 4 } }}>
       <Backdrop open={isLoadingDelete} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <CircularProgress color="inherit" />
       </Backdrop>
-      <Typography variant="h4" component="h1" gutterBottom>
+      <Typography variant="h4" component="h1" gutterBottom sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>
         Respostas
       </Typography>
       <Button
         variant="contained"
         color="primary"
         onClick={() => router.push("/home/answers/new")}
-        sx={{ marginBottom: 2, backgroundColor: "#7E57C2" }}
+        sx={{ 
+          marginBottom: 2, 
+          backgroundColor: "#7E57C2",
+          width: { xs: '100%', sm: 'auto' }
+        }}
       >
         Criar Nova Resposta
       </Button>
@@ -149,24 +153,40 @@ export default function Answers() {
       )}
       <Box sx={{ display: "grid", gap: 2 }}>
         {answers?.map((answer) => (
-          <Card key={answer.id} variant="outlined" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 2 }}>
-            <CardContent sx={{ flex: 1 }}>
-              <Typography variant="h6" component="div">
+          <Card key={answer.id} variant="outlined" sx={{ 
+            display: "flex", 
+            flexDirection: { xs: 'column', sm: 'row' },
+            justifyContent: "space-between", 
+            alignItems: { xs: 'stretch', sm: 'center' }, 
+            padding: 2 
+          }}>
+            <CardContent sx={{ flex: 1, pb: { xs: 0, sm: 2 } }}>
+              <Typography variant="h6" component="div" sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
                 {answer.text}
               </Typography>
               <Typography variant="body2" color="textSecondary">
-              Valor da Resposta: {answer.value}
+                Valor da Resposta: {answer.value}
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Última mudança das Perguntas: {processAllDates(answer.questions)}
               </Typography>
             </CardContent>
-            <CardActions>
+            <CardActions sx={{ 
+              display: 'flex', 
+              flexDirection: { xs: 'row', sm: 'row' },
+              justifyContent: { xs: 'space-between', sm: 'flex-end' },
+              width: { xs: '100%', sm: 'auto' },
+              pt: { xs: 1, sm: 0 }
+            }}>
               <Button
                 variant="contained"
                 color="success"
                 onClick={() => router.push(`/home/answers/edit/${answer.id}`)}
-                sx={{ marginRight: 1 }}
+                sx={{ 
+                  marginRight: { xs: 0, sm: 1 },
+                  flex: { xs: 1, sm: 'none' },
+                  mr: { xs: 1, sm: 1 }
+                }}
               >
                 Editar
               </Button>
@@ -175,6 +195,7 @@ export default function Answers() {
                 color="error"
                 onClick={() => handleDeleteClick(answer.id)}
                 disabled={isLoadingDelete}
+                sx={{ flex: { xs: 1, sm: 'none' } }}
               >
                 {isLoadingAnswers ? <CircularProgress size={20} /> : "Excluir"}
               </Button>
