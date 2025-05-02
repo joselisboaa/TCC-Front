@@ -58,7 +58,7 @@ export default function Users() {
         queryClient.setQueryData<User[]>("users", (old) =>
           (old || []).filter((user) => user.id !== Number(id))
         );
-        enqueueSnackbar("Usuário excluída com sucesso!", { variant: "success" });
+        enqueueSnackbar("Usuário excluído com sucesso!", { variant: "success" });
       },
       onError: (error: unknown) => {
         const errorMessage =
@@ -84,18 +84,22 @@ export default function Users() {
   };
 
   return (
-    <Box sx={{ padding: 4 }}>
+    <Box sx={{ padding: { xs: 2, sm: 4 } }}>
       <Backdrop open={isLoadingDelete} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <CircularProgress color="inherit" />
       </Backdrop>
-      <Typography variant="h4" component="h1" gutterBottom>
+      <Typography variant="h4" component="h1" gutterBottom sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>
         Usuários
       </Typography>
       <Button
         variant="contained"
         color="primary"
         onClick={() => router.push("/home/users/new")}
-        sx={{ marginBottom: 2, backgroundColor: "#7E57C2" }}
+        sx={{ 
+          marginBottom: 2, 
+          backgroundColor: "#7E57C2",
+          width: { xs: '100%', sm: 'auto' }
+        }}
       >
         Criar Novo Usuário
       </Button>
@@ -106,27 +110,85 @@ export default function Users() {
       )}
       <Box sx={{ display: "grid", gap: 2 }}>
         {users?.map((user) => (
-          <Card key={user.id} variant="outlined" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 2 }}>
-            <CardContent sx={{ flex: 1 }}>
-              <Typography variant="h6" component="div">
+          <Card key={user.id} variant="outlined" sx={{ 
+            display: "flex", 
+            flexDirection: { xs: 'column', sm: 'row' },
+            justifyContent: "space-between", 
+            alignItems: { xs: 'stretch', sm: 'center' }, 
+            padding: 2,
+            gap: { xs: 2, sm: 0 }
+          }}>
+            <CardContent sx={{ 
+              flex: 1, 
+              p: { xs: 1, sm: 2 },
+              minWidth: 0
+            }}>
+              <Typography 
+                variant="h6" 
+                component="div" 
+                sx={{ 
+                  fontSize: { xs: '1rem', sm: '1.25rem' },
+                  wordBreak: 'break-word'
+                }}
+              >
                 {user.name ? user.name : "Sem nome"}
               </Typography>
-              <Typography variant="body2" component="div">
+              <Typography 
+                variant="body2" 
+                component="div" 
+                sx={{ 
+                  mt: 0.5,
+                  wordBreak: 'break-word',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}
+              >
                 Email: {user.email}
               </Typography>
-              <Typography variant="body2" color="textSecondary">
+              <Typography 
+                variant="body2" 
+                color="textSecondary" 
+                sx={{ 
+                  mt: 0.5,
+                  wordBreak: 'break-word'
+                }}
+              >
                 Telefone: {user.phone_number}
               </Typography>
-              <Typography variant="body2" color="textSecondary">
+              <Typography 
+                variant="body2" 
+                color="textSecondary" 
+                sx={{ 
+                  mt: 0.5,
+                  wordBreak: 'break-word',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}
+              >
                 Grupos: {user.user_groups.map((group) => group.text).join(", ")}
               </Typography>
             </CardContent>
-            <CardActions>
+            <CardActions sx={{ 
+              display: 'flex', 
+              flexDirection: { xs: 'row', sm: 'row' },
+              justifyContent: { xs: 'space-between', sm: 'flex-end' },
+              width: { xs: '100%', sm: 'auto' },
+              p: { xs: 1, sm: 2 },
+              flexShrink: 0
+            }}>
               <Button
                 variant="contained"
                 color="success"
                 onClick={() => router.push(`/home/users/edit/${user.id}`)}
-                sx={{ marginRight: 1 }}
+                sx={{ 
+                  marginRight: { xs: 0, sm: 1 },
+                  flex: { xs: 1, sm: 'none' },
+                  mx: { xs: 0.5, sm: 0 },
+                  whiteSpace: 'nowrap'
+                }}
               >
                 Editar
               </Button>
@@ -135,6 +197,11 @@ export default function Users() {
                 color="error"
                 onClick={() => handleDeleteClick(user.id)}
                 disabled={isLoadingDelete}
+                sx={{ 
+                  flex: { xs: 1, sm: 'none' },
+                  mx: { xs: 0.5, sm: 0 },
+                  whiteSpace: 'nowrap'
+                }}
               >
                 {isLoadingDelete ? <CircularProgress size={20} /> : "Excluir"}
               </Button>
