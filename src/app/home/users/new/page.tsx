@@ -9,6 +9,7 @@ import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import fetchRequest from "@/utils/fetchRequest";
+import { useMediaQuery } from "@mui/material";
 
 interface UserGroup {
   id: number;
@@ -39,6 +40,7 @@ const schema = yup.object({
 export default function CreateUser() {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
+  const isDesktop = useMediaQuery('(min-width:600px)');
 
   const {
     control,
@@ -115,8 +117,24 @@ export default function CreateUser() {
   }
 
   return (
-    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "fit" }}>
-      <Paper elevation={4} sx={{ padding: 4, width: "100%", maxWidth: 420, borderRadius: 3, textAlign: "center" }}>
+    <Box sx={{ 
+      display: "flex", 
+      justifyContent: "center", 
+      alignItems: "center", 
+      height: "fit",
+      p: { xs: 2, sm: 4 }
+    }}>
+      <Box sx={{ 
+        width: "100%", 
+        maxWidth: 420, 
+        textAlign: "center",
+        ...(isDesktop && {
+          backgroundColor: "white",
+          borderRadius: 3,
+          boxShadow: 4,
+          padding: 4
+        })
+      }}>
         <Typography variant="h4" component="h1" gutterBottom sx={{ color: "#5E3BEE" }}>
           Criar Usuário
         </Typography>
@@ -202,16 +220,46 @@ export default function CreateUser() {
             )}
           />
 
-          <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
-            <Button variant="contained" sx={{ backgroundColor: "#D32F2F", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { backgroundColor: "#B71C1C" } }} onClick={handleCancel}>
+          <Box sx={{ 
+            display: "flex", 
+            gap: 2, 
+            justifyContent: "center",
+            flexDirection: { xs: 'column', sm: 'row' }
+          }}>
+            <Button 
+              variant="contained" 
+              sx={{ 
+                backgroundColor: "#D32F2F", 
+                color: "#FFF", 
+                fontWeight: "bold", 
+                width: { xs: '100%', sm: '11rem' }, 
+                padding: "10px", 
+                borderRadius: "8px", 
+                "&:hover": { backgroundColor: "#B71C1C" } 
+              }} 
+              onClick={handleCancel}
+            >
               Cancelar
             </Button>            
-            <Button type="submit" variant="contained" sx={{ background: "linear-gradient(135deg, #7E57C2, #5E3BEE)", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" } }} disabled={createMutation.isLoading}>
+            <Button 
+              type="submit" 
+              variant="contained" 
+              sx={{ 
+                background: "linear-gradient(135deg, #7E57C2, #5E3BEE)", 
+                color: "#FFF", 
+                fontWeight: "bold", 
+                width: { xs: '100%', sm: '11rem' }, 
+                padding: "10px", 
+                borderRadius: "8px", 
+                "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" } 
+              }} 
+              disabled={createMutation.isLoading}
+            >
               {createMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
             </Button>
           </Box>
         </Box>
-      </Paper>
+      </Box>
     </Box>
   );
 }
