@@ -8,6 +8,7 @@ import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import fetchRequest from "@/utils/fetchRequest";
+import { useMediaQuery } from "@mui/material";
 
 export interface UserGroup {
   id: number;
@@ -31,6 +32,7 @@ const schema = yup.object().shape({
 export default function CreateQuestion() {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
+  const isDesktop = useMediaQuery('(min-width:600px)');
 
   const {
     control,
@@ -92,9 +94,24 @@ export default function CreateQuestion() {
 
 
   return (
-    <Box sx={{ display: "flex", justifyContent: "center", height: "fit" }}>
-      <Paper elevation={4} sx={{ padding: 4, width: "100%", maxWidth: 420, borderRadius: 3, textAlign: "center" }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{ color: "#5E3BEE" }}>
+    <Box sx={{ 
+      display: "flex", 
+      justifyContent: "center", 
+      height: "fit",
+      p: { xs: 2, sm: 4 }
+    }}>
+      <Box sx={{ 
+        width: "100%", 
+        maxWidth: 420, 
+        textAlign: "center",
+        ...(isDesktop && {
+          backgroundColor: "white",
+          borderRadius: 3,
+          boxShadow: 4,
+          padding: 4
+        })
+      }}>
+        <Typography variant="h4" component="h1" gutterBottom sx={{ color: "#5E3BEE", fontSize: { xs: '1.5rem', sm: '2rem' } }}>
           Criar Nova Questão
         </Typography>
         <Typography variant="body2" sx={{ color: "#666", marginBottom: 2 }}>
@@ -148,10 +165,23 @@ export default function CreateQuestion() {
             )}
           />
 
-          <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
+          <Box sx={{ 
+            display: "flex", 
+            gap: 2, 
+            justifyContent: "center",
+            flexDirection: { xs: 'column', sm: 'row' }
+          }}>
             <Button
               variant="contained"
-              sx={{ backgroundColor: "#D32F2F", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { backgroundColor: "#B71C1C" } }}
+              sx={{ 
+                backgroundColor: "#D32F2F", 
+                color: "#FFF", 
+                fontWeight: "bold", 
+                width: { xs: '100%', sm: '11rem' }, 
+                padding: "10px", 
+                borderRadius: "8px", 
+                "&:hover": { backgroundColor: "#B71C1C" } 
+              }}
               onClick={() => router.push("/home/questions")}
             >
               Cancelar
@@ -159,14 +189,22 @@ export default function CreateQuestion() {
             <Button
               variant="contained"
               type="submit"
-              sx={{ background: "linear-gradient(135deg, #7E57C2, #5E3BEE)", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" } }}
+              sx={{ 
+                background: "linear-gradient(135deg, #7E57C2, #5E3BEE)", 
+                color: "#FFF", 
+                fontWeight: "bold", 
+                width: { xs: '100%', sm: '11rem' }, 
+                padding: "10px", 
+                borderRadius: "8px", 
+                "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" } 
+              }}
               disabled={isSubmitting || saveQuestionMutation.isLoading}
             >
               {isSubmitting || saveQuestionMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
             </Button>
           </Box>
         </Box>
-      </Paper>
+      </Box>
     </Box>
   );
 }
