@@ -46,7 +46,7 @@ export default function Navbar() {
             color="inherit" 
             aria-label="menu" 
             onClick={() => toggleDrawer(true)} 
-            sx={{ mr: 2 }}
+            sx={{ mr: 1, display: { sm: 'none' } }}
           >
             <MenuIcon />
           </IconButton>
@@ -59,45 +59,46 @@ export default function Navbar() {
           >
             Mapa de Acessibilidade
           </Typography>
-          {!isMobile && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {menuItems.map((item) => (
-                <Button
-                  key={item.text}
-                  color="inherit"
-                  startIcon={item.icon}
-                  onClick={() => navigateTo(item.path)}
-                  sx={{
-                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                    minWidth: { xs: 'auto', sm: '100px' },
-                    px: { xs: 1, sm: 2 }
-                  }}
-                >
-                  {item.text}
-                </Button>
-              ))}
+          <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1 }}>
+            {menuItems.map((item) => (
               <Button
+                key={item.text}
                 color="inherit"
-                onClick={handleLogout}
-                startIcon={<ExitIcon />}
+                startIcon={item.icon}
+                onClick={() => navigateTo(item.path)}
                 sx={{
-                  marginLeft: 2,
-                  fontWeight: "bold",
-                  color: "inherit",
-                  border: "2px solid",
-                  borderColor: "inherit",
-                  "&:hover": {
-                    backgroundColor: "rgba(0, 0, 0, 0.08)",
-                  },
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                  minWidth: { xs: 'auto', sm: '100px' },
-                  px: { xs: 1, sm: 2 }
+                  fontSize: '0.875rem',
+                  minWidth: '100px',
+                  px: 0.75,
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                  }
                 }}
               >
-                Sair
+                {item.text}
               </Button>
-            </Box>
-          )}
+            ))}
+            <Button
+              color="inherit"
+              onClick={handleLogout}
+              startIcon={<ExitIcon />}
+              sx={{
+                marginLeft: 2,
+                fontWeight: "bold",
+                color: "inherit",
+                border: "2px solid",
+                borderColor: "inherit",
+                "&:hover": {
+                  backgroundColor: "rgba(255, 255, 255, 0.1)",
+                },
+                fontSize: '0.875rem',
+                minWidth: '100px',
+                px: 2
+              }}
+            >
+              Sair
+            </Button>
+          </Box>
         </Toolbar>
       </AppBar>
 
