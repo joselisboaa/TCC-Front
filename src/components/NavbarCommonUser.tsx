@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { AppBar, Toolbar, Typography, Button, Box, Drawer, List, ListItem, ListItemText, IconButton, Divider } from "@mui/material";
-import { Menu as MenuIcon, Person, ExitToApp as ExitIcon, Group, Help, QuestionAnswer, Info } from "@mui/icons-material";
+import { AppBar, Toolbar, Typography, Button, Box, Drawer, List, ListItem, ListItemText, IconButton, Divider, useTheme, useMediaQuery } from "@mui/material";
+import { Menu as MenuIcon, Person, ExitToApp as ExitIcon, Group, Help, QuestionAnswer, Info, Close as CloseIcon } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import HomeIcon from '@mui/icons-material/Home';
 import Cookies from "js-cookie";
@@ -10,6 +10,8 @@ import Cookies from "js-cookie";
 export default function NavbarCommonUser() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const router = useRouter();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const toggleDrawer = (open: boolean) => {
     setIsDrawerOpen(open);
@@ -25,54 +27,155 @@ export default function NavbarCommonUser() {
     router.push("/");
   };
 
+  const menuItems = [
+    { icon: <HomeIcon />, text: "Inicio", path: "/home" },
+  ];
+
   return (
     <>
       <AppBar position="sticky" sx={{ backgroundColor: "#7E57C2" }}>
         <Toolbar>
-          <IconButton edge="start" color="inherit" aria-label="menu" onClick={() => toggleDrawer(true)} sx={{ mr: 2 }}>
+          <IconButton 
+            edge="start" 
+            color="inherit" 
+            aria-label="menu" 
+            onClick={() => toggleDrawer(true)} 
+            sx={{ mr: 2 }}
+          >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              flexGrow: 1,
+              fontSize: { xs: '1rem', sm: '1.25rem' }
+            }}
+          >
             Mapa de Acessibilidade
           </Typography>
-          <Box>
-            <Button color="inherit" startIcon={<HomeIcon />} onClick={() => navigateTo("/home")}>
-              Inicio
-            </Button>
-            <Button
-              color="inherit"
-              onClick={handleLogout}
-              startIcon={<ExitIcon />}
-              sx={{
-                marginLeft: 2,
-                fontWeight: "bold",
-                color: "inherit",
-                border: "2px solid",
-                borderColor: "inherit",
-                "&:hover": {
-                  backgroundColor: "rgba(0, 0, 0, 0.08)",
-                },
-              }}
-            >
-              Sair
-            </Button>
-          </Box>
+          {!isMobile && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {menuItems.map((item) => (
+                <Button
+                  key={item.text}
+                  color="inherit"
+                  startIcon={item.icon}
+                  onClick={() => navigateTo(item.path)}
+                  sx={{
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    minWidth: { xs: 'auto', sm: '100px' },
+                    px: { xs: 1, sm: 2 }
+                  }}
+                >
+                  {item.text}
+                </Button>
+              ))}
+              <Button
+                color="inherit"
+                onClick={handleLogout}
+                startIcon={<ExitIcon />}
+                sx={{
+                  marginLeft: 2,
+                  fontWeight: "bold",
+                  color: "inherit",
+                  border: "2px solid",
+                  borderColor: "inherit",
+                  "&:hover": {
+                    backgroundColor: "rgba(0, 0, 0, 0.08)",
+                  },
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  minWidth: { xs: 'auto', sm: '100px' },
+                  px: { xs: 1, sm: 2 }
+                }}
+              >
+                Sair
+              </Button>
+            </Box>
+          )}
         </Toolbar>
       </AppBar>
 
-      <Drawer anchor="left" open={isDrawerOpen} onClose={() => toggleDrawer(false)}>
-        <Box sx={{ width: 250 }} role="presentation" onClick={() => toggleDrawer(false)} onKeyDown={() => toggleDrawer(false)}>
+      <Drawer 
+        anchor="left" 
+        open={isDrawerOpen} 
+        onClose={() => toggleDrawer(false)}
+        PaperProps={{
+          sx: {
+            width: { xs: '100%', sm: 250 }
+          }
+        }}
+      >
+        <Box 
+          sx={{ 
+            width: { xs: '100%', sm: 250 },
+            pt: { xs: 2, sm: 0 }
+          }} 
+          role="presentation" 
+          onClick={() => toggleDrawer(false)} 
+          onKeyDown={() => toggleDrawer(false)}
+        >
+          {isMobile && (
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 1 }}>
+              <IconButton 
+                onClick={() => toggleDrawer(false)}
+                sx={{ 
+                  color: 'text.primary',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                  }
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </Box>
+          )}
           <List>
-            <ListItem component="button" onClick={() => navigateTo("/home")}>
-              <HomeIcon sx={{ mr: 1 }} />
-              <ListItemText primary="Início" />
-            </ListItem>
+            {menuItems.map((item) => (
+              <ListItem 
+                key={item.text}
+                component="button" 
+                onClick={() => navigateTo(item.path)}
+                sx={{
+                  py: { xs: 2, sm: 1.5 },
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                  }
+                }}
+              >
+                {item.icon}
+                <ListItemText 
+                  primary={item.text} 
+                  sx={{ 
+                    ml: 1,
+                    '& .MuiTypography-root': {
+                      fontSize: { xs: '1rem', sm: '0.875rem' }
+                    }
+                  }} 
+                />
+              </ListItem>
+            ))}
           </List>
           <Divider />
           <List>
-            <ListItem component="button" onClick={handleLogout}>
+            <ListItem 
+              component="button" 
+              onClick={handleLogout}
+              sx={{
+                py: { xs: 2, sm: 1.5 },
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                }
+              }}
+            >
               <ExitIcon sx={{ mr: 1 }} />
-              <ListItemText primary="Sair" />
+              <ListItemText 
+                primary="Sair" 
+                sx={{ 
+                  '& .MuiTypography-root': {
+                    fontSize: { xs: '1rem', sm: '0.875rem' }
+                  }
+                }} 
+              />
             </ListItem>
           </List>
         </Box>
