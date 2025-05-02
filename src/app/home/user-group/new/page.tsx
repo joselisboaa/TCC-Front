@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Box, Button, TextField, Typography, CircularProgress, Paper } from "@mui/material";
+import { Box, Button, TextField, Typography, CircularProgress, Paper, useMediaQuery } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { useMutation } from "react-query";
 import { useForm, Controller } from "react-hook-form";
@@ -17,6 +17,7 @@ const schema = yup.object({
 export default function CreateUserGroup() {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
+  const isDesktop = useMediaQuery('(min-width:600px)');
 
   const {
     control,
@@ -64,27 +65,31 @@ export default function CreateUserGroup() {
       sx={{
         display: "flex",
         justifyContent: "center",
-        alignItems: "center"
+        alignItems: "center",
+        p: { xs: 2, sm: 4 }
       }}
     >
-      <Paper
-        elevation={4}
+      <Box
         sx={{
-          padding: 4,
           width: "100%",
           maxWidth: 420,
-          borderRadius: 3,
           textAlign: "center",
+          ...(isDesktop && {
+            backgroundColor: "white",
+            borderRadius: 3,
+            boxShadow: 4,
+            padding: 4
+          })
         }}
       >
-        <Typography variant="h4" component="h1" gutterBottom sx={{ color: "#5E3BEE" }}>
+        <Typography variant="h4" component="h1" gutterBottom sx={{ color: "#5E3BEE", fontSize: { xs: '1.5rem', sm: '2rem' } }}>
           Criar Grupo
         </Typography>
         <Typography variant="body2" sx={{ color: "#666", marginBottom: 2 }}>
           Preencha os campos abaixo para criar um novo grupo de acessibilidade.
         </Typography>
 
-        <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ display: "grid", gap: 2 }}>
+        <form onSubmit={handleSubmit(onSubmit)} style={{ display: "grid", gap: "16px" }}>
           <Controller
             name="text"
             control={control}
@@ -109,21 +114,26 @@ export default function CreateUserGroup() {
                 label="Descrição"
                 fullWidth
                 variant="outlined"
-                multiline
-                rows={3}
                 error={!!errors.description}
                 helperText={errors.description?.message}
+                autoComplete="off"
+                type="text"
               />
             )}
           />
 
-          <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
+          <Box sx={{ 
+            display: "flex", 
+            gap: 2, 
+            justifyContent: "center",
+            flexDirection: { xs: 'column', sm: 'row' }
+          }}>
             <Button
               variant="contained"
               sx={{
                 backgroundColor: "#D32F2F",
                 color: "#FFF",
-                width: "11rem",
+                width: { xs: '100%', sm: '11rem' },
                 fontWeight: "bold",
                 padding: "10px",
                 borderRadius: "8px",
@@ -139,7 +149,7 @@ export default function CreateUserGroup() {
               sx={{
                 background: "linear-gradient(135deg, #7E57C2, #5E3BEE)",
                 color: "#FFF",
-                width: "11rem",
+                width: { xs: '100%', sm: '11rem' },
                 fontWeight: "bold",
                 padding: "10px",
                 borderRadius: "8px",
@@ -150,8 +160,8 @@ export default function CreateUserGroup() {
               {createMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
             </Button>
           </Box>
-        </Box>
-      </Paper>
+        </form>
+      </Box>
     </Box>
   );
 }
