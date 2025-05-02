@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useParams } from "next/navigation";
-import { Box, Button, TextField, Typography, CircularProgress, Autocomplete, Paper, FormControlLabel, Switch } from "@mui/material";
+import { Box, Button, TextField, Typography, CircularProgress, Autocomplete, Paper, FormControlLabel, Switch, useMediaQuery } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { useQuery, useMutation } from "react-query";
 import { useForm, Controller } from "react-hook-form";
@@ -48,6 +48,7 @@ export default function EditAnswer() {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
   const { id }: any = useParams();
+  const isDesktop = useMediaQuery('(min-width:600px)');
 
   const { control, getValues, handleSubmit, setValue, formState: { errors } } = useForm<Answer>({
     resolver: yupResolver(schema),
@@ -147,17 +148,23 @@ export default function EditAnswer() {
       display: "flex", 
       justifyContent: "center", 
       alignItems: "center", 
-      minHeight: "100vh",
-      padding: 2
+      padding: { xs: 2, sm: 4 }
     }}>
-      <Paper elevation={4} sx={{ 
-        padding: 4,
-        width: "auto",
-        maxWidth: "50vw",
-        borderRadius: 3,
-        textAlign: "center"
+      <Box sx={{ 
+        width: "100%",
+        maxWidth: { xs: "100%", sm: "50vw" },
+        textAlign: "center",
+        ...(isDesktop && {
+          backgroundColor: "white",
+          borderRadius: 3,
+          boxShadow: 4,
+          padding: 4
+        })
       }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{ color: "#5E3BEE" }}>
+        <Typography variant="h4" component="h1" gutterBottom sx={{ 
+          color: "#5E3BEE",
+          fontSize: { xs: '1.5rem', sm: '2rem' }
+        }}>
           Editar Resposta
         </Typography>
         <Typography variant="body2" sx={{ color: "#666", marginBottom: 2 }}>
@@ -181,16 +188,11 @@ export default function EditAnswer() {
                 <Autocomplete
                   {...field}
                   multiple
-                  options={questions?.filter(question => 
-                    !field.value?.some(selected => selected.id === question.id)
-                  ) || []}
+                  options={questions || []}
                   getOptionLabel={(option) => option.text}
-                  onChange={(_, newValue) => {
-                    const uniqueValues = Array.from(new Set(newValue.map(item => item.id)))
-                      .map(id => newValue.find(item => item.id === id));
-                    field.onChange(uniqueValues);
-                  }}
                   isOptionEqualToValue={(option, value) => option.id === value.id}
+                  onChange={(_, newValue) => field.onChange(newValue)}
+                  loading={isFetchingQuestions}
                   sx={{
                     '& .MuiAutocomplete-tag': {
                       maxWidth: '100%',
@@ -213,6 +215,15 @@ export default function EditAnswer() {
                       label="Selecionar Perguntas"
                       error={!!errors.questions}
                       helperText={errors.questions?.message}
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {isFetchingQuestions ? <CircularProgress size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
                     />
                   )}
                 />
@@ -233,10 +244,23 @@ export default function EditAnswer() {
               )}
             />
 
-            <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
-            <Button
+            <Box sx={{ 
+              display: "flex", 
+              gap: 2, 
+              justifyContent: "center",
+              flexDirection: { xs: 'column', sm: 'row' }
+            }}>
+              <Button
                 variant="contained"
-                sx={{ backgroundColor: "#D32F2F", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { backgroundColor: "#B71C1C" } }}
+                sx={{ 
+                  backgroundColor: "#D32F2F", 
+                  color: "#FFF", 
+                  fontWeight: "bold", 
+                  width: { xs: "100%", sm: "11rem" }, 
+                  padding: "10px", 
+                  borderRadius: "8px", 
+                  "&:hover": { backgroundColor: "#B71C1C" } 
+                }}
                 onClick={() => router.push("/home/answers")}
               >
                 Cancelar
@@ -244,7 +268,15 @@ export default function EditAnswer() {
               <Button
                 type="submit"
                 variant="contained"
-                sx={{ background: "linear-gradient(135deg, #7E57C2, #5E3BEE)", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" } }}
+                sx={{ 
+                  background: "linear-gradient(135deg, #7E57C2, #5E3BEE)", 
+                  color: "#FFF", 
+                  fontWeight: "bold", 
+                  width: { xs: "100%", sm: "11rem" }, 
+                  padding: "10px", 
+                  borderRadius: "8px", 
+                  "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" } 
+                }}
                 disabled={updateMutation.isLoading}
               >
                 {updateMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
@@ -252,7 +284,7 @@ export default function EditAnswer() {
             </Box>
           </Box>
         </form>
-      </Paper>
+      </Box>
     </Box>
   );
 }
