@@ -1,56 +1,52 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Box, Typography, Button, CircularProgress, Paper, Grid, Alert } from "@mui/material";
+import { Box, Typography, CircularProgress, Paper, Grid, Card, CardContent } from "@mui/material";
 import { useRouter } from "next/navigation";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
+import { useQuery } from "react-query";
+import { useSnackbar } from "notistack";
+import fetchRequest from "@/utils/fetchRequest";
+
+interface GroupStatistics {
+  text: string;
+  _count: {
+    users: number;
+  };
+}
+
+interface UserStatus {
+  withGroups: number;
+  withoutGroups: number;
+}
+
+interface StatisticsData {
+  userGroupDistribution: GroupStatistics[];
+  groupsWithResponses: GroupStatistics[];
+  userStatus: UserStatus;
+}
 
 export default function Home() {
   const router = useRouter();
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const { enqueueSnackbar } = useSnackbar();
 
-  const fetchChartData = async () => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_IA_URL}/data`);
-      if (!response.ok) {
-        throw new Error("Erro ao conectar com a API");
-      }
-
-      const result = await response.json();
-
-      const formattedData: any = [];
-
-      Object.entries(result.historical).forEach(([date, value]) => {
-        formattedData.push({
-          name: date.substring(0, 7),
-          historico: value,
-          previsto: null,
-        });
+  const { data: statistics, isLoading: isLoadingStats } = useQuery<StatisticsData>(
+    "user-groups-statistics",
+    async () => {
+      const response = await fetchRequest<null, StatisticsData>("/user-groups/statistics", {
+        method: "GET",
       });
-
-      Object.entries(result.predicted).forEach(([date, value]) => {
-        formattedData.push({
-          name: date.substring(0, 7),
-          historico: null,
-          previsto: value,
-        });
-      });
-
-      setData(formattedData);
-      setError(false);
-    } catch (error) {
-      console.error("Erro ao buscar dados do gráfico:", error);
-      setError(true);
-    } finally {
-      setLoading(false);
+      return response.body;
+    },
+    {
+      onError: (error: unknown) => {
+        enqueueSnackbar(
+          `Erro ao carregar estatísticas: ${
+            error instanceof Error ? error.message : "Erro desconhecido"
+          }`,
+          { variant: "error" }
+        );
+      },
     }
-  };
-
-  useEffect(() => {
-    fetchChartData();
-  }, []);
+  );
 
   return (
     <Box sx={{ padding: 2, minHeight: "100vh" }}>
@@ -62,73 +58,78 @@ export default function Home() {
         Gerencie grupos de usuários e visualize os dados de acessibilidade de forma intuitiva.
       </Typography>
 
-      <Grid container spacing={2} justifyContent="center">
-        <Grid item>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => router.push("/home/user-group")}
-            sx={{ fontSize: "16px", fontWeight: "bold", borderRadius: "8px", padding: "10px 20px" }}
-          >
-            Gerenciar Grupos de Usuários
-          </Button>
-        </Grid>
-        <Grid item>
-          <Button
-            variant="contained"
-            color="secondary"
-            onClick={() => router.push("/home/answers")}
-            sx={{ fontSize: "16px", fontWeight: "bold", borderRadius: "8px", padding: "10px 20px" }}
-          >
-            Gerenciar Respostas
-          </Button>
-        </Grid>
-      </Grid>
-
-      {error && (
-        <Box sx={{ marginTop: 4, display: "flex", justifyContent: "center" }}>
-          <Alert severity="error">Não foi possível carregar os dados. Verifique a API e tente novamente.</Alert>
+      {isLoadingStats ? (
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginTop: 4 }}>
+          <CircularProgress />
         </Box>
-      )}
+      ) : statistics && (
+        <Grid container spacing={3} sx={{ mt: 4 }}>
+          <Grid item xs={12}>
+            <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Status dos Usuários
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Card>
+                    <CardContent>
+                      <Typography color="textSecondary" gutterBottom>
+                        Usuários com Grupos
+                      </Typography>
+                      <Typography variant="h4">
+                        {statistics.userStatus.withGroups}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={6}>
+                  <Card>
+                    <CardContent>
+                      <Typography color="textSecondary" gutterBottom>
+                        Usuários sem Grupos
+                      </Typography>
+                      <Typography variant="h4">
+                        {statistics.userStatus.withoutGroups}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
 
-      {!error && (
-        <Box sx={{ marginTop: 6, display: "flex", justifyContent: "center" }}>
-          <Paper
-            elevation={3}
-            sx={{ width: "90%", maxWidth: 800, padding: 3, borderRadius: "12px", backgroundColor: "#fff" }}
-          >
-            <Typography variant="h6" gutterBottom sx={{ textAlign: "center", fontWeight: "bold", color: "#444" }}>
-              Indicadores de Acessibilidade por Mês
-            </Typography>
+          <Grid item xs={12} md={6}>
+            <Paper elevation={3} sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Distribuição de Usuários por Grupo
+              </Typography>
+              {statistics.userGroupDistribution.map((group) => (
+                <Card key={group.text} sx={{ mb: 2 }}>
+                  <CardContent>
+                    <Typography variant="subtitle1">{group.text}</Typography>
+                    <Typography variant="h6">{group._count.users} usuários</Typography>
+                  </CardContent>
+                </Card>
+              ))}
+            </Paper>
+          </Grid>
 
-            {loading ? (
-              <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: 250 }}>
-                <CircularProgress />
-              </Box>
-            ) : (
-              <ResponsiveContainer width="100%" height={350}>
-                <BarChart
-                  data={data}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 50 }}
-                  barSize={40}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="name"
-                    stroke="#555"
-                    angle={-30}
-                    textAnchor="end"
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis stroke="#555" />
-                  <Tooltip />
-                  <Bar dataKey="historico" fill="#1976D2" radius={[5, 5, 0, 0]} name="Histórico" />
-                  <Bar dataKey="previsto" fill="#4CAF50" radius={[5, 5, 0, 0]} name="Previsto" />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </Paper>
-        </Box>
+          <Grid item xs={12} md={6}>
+            <Paper elevation={3} sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Grupos com Respostas
+              </Typography>
+              {statistics.groupsWithResponses.map((group) => (
+                <Card key={group.text} sx={{ mb: 2 }}>
+                  <CardContent>
+                    <Typography variant="subtitle1">{group.text}</Typography>
+                    <Typography variant="h6">{group._count.users} usuários</Typography>
+                  </CardContent>
+                </Card>
+              ))}
+            </Paper>
+          </Grid>
+        </Grid>
       )}
     </Box>
   );
