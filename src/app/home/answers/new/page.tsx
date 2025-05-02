@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Box, Button, TextField, Typography, CircularProgress, Autocomplete, Paper, FormControlLabel, Switch } from "@mui/material";
+import { Box, Button, TextField, Typography, CircularProgress, Autocomplete, Paper, FormControlLabel, Switch, useMediaQuery } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { useQuery, useMutation } from "react-query";
 import { useForm, Controller } from "react-hook-form";
@@ -23,12 +23,15 @@ const schema = yup.object().shape({
       yup.object().shape({
         id: yup.number().required("A questão é obrigatória"),
         text: yup.string().required("A questão é obrigatória"),
-        user_groups: yup.array().of(
-          yup.object().shape({
-            id: yup.number().required(),
-            text: yup.string().required(),
-          })
-        )        
+        user_groups: yup.array()
+          .of(
+            yup.object().shape({
+              id: yup.number().required(),
+              text: yup.string().required(),
+            })
+          )
+          .min(1, "A questão deve ter pelo menos um grupo de usuários")
+          .required("Os grupos de usuários são obrigatórios")
       })
     )
     .min(1, "Selecione pelo menos uma pergunta")
@@ -41,6 +44,7 @@ const schema = yup.object().shape({
 export default function CreateAnswer() {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
+  const isDesktop = useMediaQuery('(min-width:600px)');
   
   const { control, handleSubmit, formState: { errors }, } = useForm({
     resolver: yupResolver(schema),
@@ -66,14 +70,14 @@ export default function CreateAnswer() {
   );
 
   const createMutation = useMutation(
-    async (data: any) => {
+    async (data: { text: string; question: Question[]; other: boolean; value: number }) => {
       await fetchRequest("/answers", {
         method: "POST",
         body: { 
           text: data.text, 
           other: data.other,
           value: data.value,
-          question_id: data.question.map((q: any) => q.id)
+          question_id: data.question.map((q) => q.id)
         },
       });
     },
@@ -89,9 +93,27 @@ export default function CreateAnswer() {
   );
 
   return (
-    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", padding: 2 }}>
-      <Paper elevation={4} sx={{ padding: 4, width: "auto", maxWidth: "50vw", borderRadius: 3, textAlign: "center" }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{ color: "#5E3BEE" }}>
+    <Box sx={{ 
+      display: "flex", 
+      justifyContent: "center", 
+      alignItems: "center", 
+      padding: { xs: 2, sm: 4 }
+    }}>
+      <Box sx={{ 
+        width: "100%",
+        maxWidth: { xs: "100%", sm: "50vw" },
+        textAlign: "center",
+        ...(isDesktop && {
+          backgroundColor: "white",
+          borderRadius: 3,
+          boxShadow: 4,
+          padding: 4
+        })
+      }}>
+        <Typography variant="h4" component="h1" gutterBottom sx={{ 
+          color: "#5E3BEE",
+          fontSize: { xs: '1.5rem', sm: '2rem' }
+        }}>
           Criar Resposta
         </Typography>
         <Typography variant="body2" sx={{ color: "#666", marginBottom: 2 }}>
@@ -113,16 +135,11 @@ export default function CreateAnswer() {
                 <Autocomplete
                   {...field}
                   multiple
-                  options={questions?.filter(question => 
-                    !field.value?.some(selected => selected.id === question.id)
-                  ) || []}
+                  options={questions || []}
                   getOptionLabel={(option) => option.text}
-                  onChange={(_, newValue) => {
-                    const uniqueValues = Array.from(new Set(newValue.map(item => item.id)))
-                      .map(id => newValue.find(item => item.id === id));
-                    field.onChange(uniqueValues);
-                  }}
                   isOptionEqualToValue={(option, value) => option.id === value.id}
+                  onChange={(_, newValue) => field.onChange(newValue)}
+                  loading={isFetchingQuestions}
                   sx={{
                     width: '100%',
                     '& .MuiAutocomplete-inputRoot': {
@@ -174,6 +191,22 @@ export default function CreateAnswer() {
             />
 
             <Controller
+              name="value"
+              control={control}
+              render={({ field }) => (
+                <TextField 
+                  {...field} 
+                  label="Valor da Resposta" 
+                  fullWidth 
+                  variant="outlined" 
+                  error={!!errors.value} 
+                  helperText={errors.value?.message}
+                  type="number"
+                />
+              )}
+            />
+
+            <Controller
               name="other"
               control={control}
               render={({ field }) => (
@@ -184,10 +217,23 @@ export default function CreateAnswer() {
               )}
             />
 
-            <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
+            <Box sx={{ 
+              display: "flex", 
+              gap: 2, 
+              justifyContent: "center",
+              flexDirection: { xs: 'column', sm: 'row' }
+            }}>
               <Button
                 variant="contained"
-                sx={{ backgroundColor: "#D32F2F", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { backgroundColor: "#B71C1C" } }}
+                sx={{ 
+                  backgroundColor: "#D32F2F", 
+                  color: "#FFF", 
+                  fontWeight: "bold", 
+                  width: { xs: "100%", sm: "11rem" }, 
+                  padding: "10px", 
+                  borderRadius: "8px", 
+                  "&:hover": { backgroundColor: "#B71C1C" } 
+                }}
                 onClick={() => router.push("/home/answers")}
               >
                 Cancelar
@@ -195,7 +241,15 @@ export default function CreateAnswer() {
               <Button
                 type="submit"
                 variant="contained"
-                sx={{ background: "linear-gradient(135deg, #7E57C2, #5E3BEE)", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" } }}
+                sx={{ 
+                  background: "linear-gradient(135deg, #7E57C2, #5E3BEE)", 
+                  color: "#FFF", 
+                  fontWeight: "bold", 
+                  width: { xs: "100%", sm: "11rem" }, 
+                  padding: "10px", 
+                  borderRadius: "8px", 
+                  "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" } 
+                }}
                 disabled={createMutation.isLoading}
               >
                 {createMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
@@ -203,7 +257,7 @@ export default function CreateAnswer() {
             </Box>
           </Box>
         </form>
-      </Paper>
+      </Box>
     </Box>
   );
 }
