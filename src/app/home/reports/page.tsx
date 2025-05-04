@@ -154,11 +154,13 @@ export default function Responses() {
   
 
   return (
-    <Box sx={{ padding: 4 }}>
+    <Box sx={{ padding: { xs: 2, sm: 4 } }}>
       <Backdrop open={isLoading || isResponseLoading || isLoadingAverageResponses || isOrientationsLoading} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <CircularProgress color="inherit" />
       </Backdrop>
-      <Typography variant="h4" component="h1" gutterBottom>
+      <Typography variant="h4" component="h1" gutterBottom sx={{ 
+        fontSize: { xs: '1.5rem', sm: '2rem' }
+      }}>
         Relatórios dos Usuários
       </Typography>
       <Box sx={{ mb: 2 }}>
@@ -170,15 +172,28 @@ export default function Responses() {
             handleFetchOrientations();
           }}
           disabled={isLoadingAverageResponses}
+          sx={{ width: { xs: '100%', sm: 'auto' } }}
         >
           {isLoadingAverageResponses ? <CircularProgress size={20} /> : "Ver Relatório Geral"}
         </Button>
       </Box>
       <Box sx={{ display: "grid", gap: 2 }}>
         {responses.map((response) => (
-          <Card key={response.id} variant="outlined" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 2 }}>
-            <CardContent sx={{ flex: 1 }}>
-              <Typography variant="h6" component="div">
+          <Card key={response.id} variant="outlined" sx={{ 
+            display: "flex", 
+            flexDirection: { xs: 'column', sm: 'row' },
+            justifyContent: "space-between", 
+            alignItems: { xs: 'stretch', sm: 'center' }, 
+            padding: { xs: 1, sm: 2 }
+          }}>
+            <CardContent sx={{ 
+              flex: 1,
+              padding: { xs: 1, sm: 2 },
+              '&:last-child': { paddingBottom: { xs: 1, sm: 2 } }
+            }}>
+              <Typography variant="h6" component="div" sx={{ 
+                fontSize: { xs: '1rem', sm: '1.25rem' }
+              }}>
                 Resposta de {response.user.name ? response.user.name : "Anônimo"}
               </Typography>
               <Typography variant="body2" color="textSecondary">
@@ -194,7 +209,10 @@ export default function Responses() {
                 Grupos de Usuário: {response.user.user_groups.map(group => group.text).join(", ")}
               </Typography>
             </CardContent>
-            <CardActions>
+            <CardActions sx={{ 
+              padding: { xs: 1, sm: 2 },
+              justifyContent: { xs: 'stretch', sm: 'flex-end' }
+            }}>
               <Button
                 variant="contained"
                 color="secondary"
@@ -202,8 +220,16 @@ export default function Responses() {
                   handleGenerateReport(response.id);
                 }}
                 disabled={loadingReportId === response.id}
+                sx={{ 
+                  width: { xs: '100%', sm: 'auto' },
+                  fontSize: { xs: '0.875rem', sm: '1rem' }
+                }}
               >
-                {loadingReportId === response.id ? <CircularProgress size={25} sx={{ color: "#FFF", marginInline: "4.5rem" }} /> : "Visualizar Relatório"}              
+                {loadingReportId === response.id ? (
+                  <CircularProgress size={25} sx={{ color: "#FFF" }} />
+                ) : (
+                  "Visualizar Relatório"
+                )}              
               </Button>
             </CardActions>
           </Card>
