@@ -93,19 +93,32 @@ export default function AverageDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      fullWidth 
+      maxWidth="md"
+      PaperProps={{
+        sx: {
+          width: { xs: '95%', sm: '80%', md: '70%' },
+          maxHeight: { xs: '90vh', sm: '80vh' },
+          margin: { xs: 1, sm: 2 }
+        }
+      }}
+    >
       <DialogTitle
         sx={{
           color: "secondary",
           fontWeight: 600,
-          fontSize: "1.5rem",
+          fontSize: { xs: '1.25rem', sm: '1.5rem' },
           alignSelf: "center",
+          padding: { xs: 2, sm: 3 }
         }}
       >
         Relatório Geral
       </DialogTitle>
-      <DialogContent>
-        <Box ref={pdfRef} sx={{ p: 2 }}>
+      <DialogContent sx={{ padding: { xs: 1, sm: 2, md: 3 } }}>
+        <Box ref={pdfRef} sx={{ p: { xs: 1, sm: 2 } }}>
           {data.length > 0 ? (
             data.map((item) => {
               const matchedOrientation = getMatchedOrientation(
@@ -114,29 +127,48 @@ export default function AverageDialog({
               );
 
               return (
-                <Card key={item.id} variant="outlined" sx={{ p: 2, mb: 2 }}>
+                <Card key={item.id} variant="outlined" sx={{ 
+                  p: { xs: 1.5, sm: 2 }, 
+                  mb: { xs: 1.5, sm: 2 } 
+                }}>
                   <Box
                     sx={{
                       display: "flex",
                       flexDirection: { xs: "column", md: "row" },
-                      gap: 2,
+                      gap: { xs: 1.5, sm: 2 },
                     }}
                   >
                     <Box sx={{ flex: 1 }}>
-                      <Typography variant="h6" color="#000" fontWeight={500}>
+                      <Typography 
+                        variant="h6" 
+                        color="#000" 
+                        fontWeight={500}
+                        sx={{ 
+                          fontSize: { xs: '1rem', sm: '1.25rem' },
+                          mb: { xs: 0.5, sm: 1 }
+                        }}
+                      >
                         {item.text}
                       </Typography>
-                      <Typography>
+                      <Typography sx={{ 
+                        fontSize: { xs: '0.875rem', sm: '1rem' },
+                        mb: { xs: 0.5, sm: 1 }
+                      }}>
                         Avaliação média: <strong>{item.average}</strong>
                       </Typography>
-                      <Typography>Total de respostas: {item.total}</Typography>
+                      <Typography sx={{ 
+                        fontSize: { xs: '0.875rem', sm: '1rem' },
+                        mb: { xs: 0.5, sm: 1 }
+                      }}>
+                        Total de respostas: {item.total}
+                      </Typography>
                       <Box
                         sx={{
-                          width: "100px",
-                          height: "25px",
+                          width: { xs: '80px', sm: '100px' },
+                          height: { xs: '20px', sm: '25px' },
                           backgroundColor: item.threshold,
                           borderRadius: "5px",
-                          mt: 1,
+                          mt: { xs: 0.5, sm: 1 },
                         }}
                       />
                     </Box>
@@ -154,13 +186,26 @@ export default function AverageDialog({
                         variant="subtitle1"
                         fontWeight={600}
                         gutterBottom
+                        sx={{ 
+                          fontSize: { xs: '0.875rem', sm: '1rem' },
+                          mb: { xs: 0.5, sm: 1 }
+                        }}
                       >
                         Orientação
                       </Typography>
                       {matchedOrientation ? (
-                        <Typography>{matchedOrientation.text}</Typography>
+                        <Typography sx={{ 
+                          fontSize: { xs: '0.875rem', sm: '1rem' }
+                        }}>
+                          {matchedOrientation.text}
+                        </Typography>
                       ) : (
-                        <Typography color="textSecondary">
+                        <Typography 
+                          color="textSecondary"
+                          sx={{ 
+                            fontSize: { xs: '0.875rem', sm: '1rem' }
+                          }}
+                        >
                           Nenhuma orientação aplicável.
                         </Typography>
                       )}
@@ -173,12 +218,20 @@ export default function AverageDialog({
             <Typography variant="body2">Nenhum dado encontrado.</Typography>
           )}
         </Box>
-        <DialogActions>
+        <DialogActions sx={{ 
+          padding: { xs: 1, sm: 2 },
+          justifyContent: { xs: 'center', sm: 'flex-end' },
+          gap: { xs: 1, sm: 2 }
+        }}>
           <Button
             onClick={handleDownloadPDF}
             variant="contained"
             color="success"
             disabled={loading}
+            sx={{ 
+              width: { xs: '100%', sm: 'auto' },
+              fontSize: { xs: '0.875rem', sm: '1rem' }
+            }}
           >
             {loading ? (
               <CircularProgress size={24} sx={{ color: "#fff" }} />
@@ -186,7 +239,14 @@ export default function AverageDialog({
               "Baixar PDF"
             )}
           </Button>
-          <Button onClick={onClose} color="primary">
+          <Button 
+            onClick={onClose} 
+            color="primary"
+            sx={{ 
+              width: { xs: '100%', sm: 'auto' },
+              fontSize: { xs: '0.875rem', sm: '1rem' }
+            }}
+          >
             Fechar
           </Button>
         </DialogActions>
