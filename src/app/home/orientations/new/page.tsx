@@ -8,6 +8,7 @@ import { useForm, Controller } from "react-hook-form";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import fetchRequest from "@/utils/fetchRequest";
+import { useMediaQuery } from "@mui/material";
 
 interface Question {
   id: number;
@@ -19,7 +20,10 @@ interface Question {
 
 interface FormData {
   text: string;
-  question: Question;
+  question: {
+    id: number;
+    text: string;
+  };
   threshold: number;
 }
 
@@ -29,11 +33,8 @@ const schema = yup.object().shape({
   question: yup
     .object()
     .shape({
-      id: yup.number().moreThan(0, "Selecione uma pergunta válida").required(),
-      text: yup.string().required(),
-      user_group: yup.object().shape({
-        text: yup.string().required(),
-      }),
+      id: yup.number().moreThan(0, "Selecione uma pergunta válida").required("A pergunta é obrigatória"),
+      text: yup.string().required("A pergunta é obrigatória"),
     })
     .required("A pergunta é obrigatória"),
 });
@@ -41,13 +42,13 @@ const schema = yup.object().shape({
 export default function CreateOrientation() {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
+  const isDesktop = useMediaQuery('(min-width:600px)');
 
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: yupResolver(schema),
     defaultValues: {
       text: "",
-      threshold: 0,
-      question: { id: 0, text: "", user_group: { text: "" } },
+      threshold: 0
     },
   });
 
@@ -79,10 +80,29 @@ export default function CreateOrientation() {
     createMutation.mutate(data);
   };
 
+
   return (
-    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "fit" }}>
-      <Paper elevation={4} sx={{ padding: 4, width: "100%", maxWidth: 420, borderRadius: 3, textAlign: "center" }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{ color: "#5E3BEE" }}>
+    <Box sx={{ 
+      display: "flex", 
+      justifyContent: "center", 
+      alignItems: "center", 
+      padding: { xs: 2, sm: 4 }
+    }}>
+      <Box sx={{ 
+        width: "100%",
+        maxWidth: { xs: "100%", sm: "420px" },
+        textAlign: "center",
+        ...(isDesktop && {
+          backgroundColor: "white",
+          borderRadius: 3,
+          boxShadow: 4,
+          padding: 4
+        })
+      }}>
+        <Typography variant="h4" component="h1" gutterBottom sx={{ 
+          color: "#5E3BEE",
+          fontSize: { xs: '1.5rem', sm: '2rem' }
+        }}>
           Criar Orientação
         </Typography>
         <Typography variant="body2" sx={{ color: "#666", marginBottom: 2 }}>
@@ -109,20 +129,39 @@ export default function CreateOrientation() {
                 {...field}
                 options={questions || []}
                 noOptionsText="Nenhuma pergunta encontrada"
-                getOptionLabel={(option) => `${option.text} ${option.user_group?.text ? "(" + option.user_group.text + ")" : ""}`}
+                getOptionLabel={(option) => `${option.text} `}
                 onChange={(_, newValue) => field.onChange(newValue)}
                 value={field.value || null}
                 renderInput={(params) => (
-                  <TextField {...params} label="Selecionar Pergunta" fullWidth variant="outlined" error={!!errors.question} helperText={errors.question?.message} />
+                  <TextField 
+                    {...params} 
+                    label="Selecionar Pergunta" 
+                    fullWidth variant="outlined" 
+                    error={!!errors.question} 
+                    helperText={errors.question?.message || errors.question?.id?.message} 
+                  />
                 )}
               />
             )}
           />
 
-          <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
+          <Box sx={{ 
+            display: "flex", 
+            gap: 2, 
+            justifyContent: "center",
+            flexDirection: { xs: 'column', sm: 'row' }
+          }}>
             <Button
               variant="contained"
-              sx={{ backgroundColor: "#D32F2F", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { backgroundColor: "#B71C1C" } }}
+              sx={{ 
+                backgroundColor: "#D32F2F", 
+                color: "#FFF", 
+                fontWeight: "bold", 
+                width: { xs: "100%", sm: "11rem" }, 
+                padding: "10px", 
+                borderRadius: "8px", 
+                "&:hover": { backgroundColor: "#B71C1C" } 
+              }}
               onClick={() => router.push("/home/orientations")}
             >
               Cancelar
@@ -130,14 +169,22 @@ export default function CreateOrientation() {
             <Button
               variant="contained"
               type="submit"
-              sx={{ background: "linear-gradient(135deg, #7E57C2, #5E3BEE)", color: "#FFF", fontWeight: "bold", width: "11rem", padding: "10px", borderRadius: "8px", "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" } }}
+              sx={{ 
+                background: "linear-gradient(135deg, #7E57C2, #5E3BEE)", 
+                color: "#FFF", 
+                fontWeight: "bold", 
+                width: { xs: "100%", sm: "11rem" }, 
+                padding: "10px", 
+                borderRadius: "8px", 
+                "&:hover": { background: "linear-gradient(135deg, #5E3BEE, #7E57C2)" } 
+              }}
               disabled={createMutation.isLoading}
             >
               {createMutation.isLoading ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
             </Button>
           </Box>
         </Box>
-      </Paper>
+      </Box>
     </Box>
   );
 }
