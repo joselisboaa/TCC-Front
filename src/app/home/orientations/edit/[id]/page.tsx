@@ -32,7 +32,10 @@ interface Orientation {
 
 interface FormData {
   text: string;
-  question: Question;
+  question: {
+    id: number;
+    text: string;
+  };
   threshold: number;
 }
 
@@ -44,9 +47,6 @@ const schema = yup.object().shape({
     .shape({
       id: yup.number().moreThan(0, "Selecione uma pergunta válida").required(),
       text: yup.string().required(),
-      user_group: yup.object().shape({
-        text: yup.string().required(),
-      }),
     })
     .required("A pergunta é obrigatória"),
 });
@@ -64,7 +64,7 @@ export default function EditOrientation() {
     defaultValues: {
       text: "",
       threshold: 0,
-      question: { id: 0, text: "", user_group: { text: "" }}
+      question: { id: 0, text: "" }
     },
   });
 
@@ -127,6 +127,7 @@ export default function EditOrientation() {
     );
   }
 
+
   return (
     <Box sx={{ 
       display: "flex", 
@@ -175,6 +176,7 @@ export default function EditOrientation() {
                 {...field}
                 options={questions || []}
                 getOptionLabel={(option) => option?.text || ""}
+                noOptionsText="Nenhuma pergunta encontrada"
                 isOptionEqualToValue={(option, value) => option.id === value.id}
                 onChange={(_, newValue) => field.onChange(newValue || null)}
                 renderInput={(params) => <TextField {...params} label="Selecionar a Pergunta" error={!!errors.question} helperText={errors.question?.message} fullWidth />}
