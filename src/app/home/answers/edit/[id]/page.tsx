@@ -14,31 +14,14 @@ interface UserGroup {
   text: string;
 }
 
-interface Question {
-  id: number;
-  text: string;
-  user_groups?: UserGroup[];
-}
-
 interface Answer {
   text: string;
-  questions: Question[];
   other: boolean;
   value: number;
 }
 
 const schema = yup.object().shape({
   text: yup.string().trim().required("O texto da resposta é obrigatório"),
-  questions: yup
-    .array()
-    .of(
-      yup.object().shape({
-        id: yup.number().required("A questão é obrigatória"),
-        text: yup.string().required("A questão é obrigatória"),
-      })
-    )
-    .min(1, "Selecione pelo menos uma pergunta")
-    .required("A pergunta é obrigatória"),
   other: yup.boolean().required("O campo outros é obrigatório"),
   value: yup.number().required("O valor é obrigatório").typeError("O valor deve ser um número"),
 });
@@ -50,41 +33,19 @@ export default function EditAnswer() {
   const { id }: any = useParams();
   const isDesktop = useMediaQuery('(min-width:600px)');
 
-  const { control, getValues, handleSubmit, setValue, formState: { errors } } = useForm<Answer>({
+  const { control, handleSubmit, getValues, setValue, formState: { errors } } = useForm<Answer>({
     resolver: yupResolver(schema),
     defaultValues: {
       text: "",
-      questions: [{ 
-        id: 0, 
-        text: "",
-        user_groups: [{ text: "" }]
-      }],
       other: false,
       value: 0
     },
   });
-  
-
-  const { data: questions, isLoading: isFetchingQuestions } = useQuery(
-    "questions",
-    async () => {
-      const response = await fetchRequest<null, Question[]>("/questions", { method: "GET" });
-      return response.body;
-    },
-    {
-      onError: (error) => {
-        enqueueSnackbar(
-          `Erro ao carregar perguntas: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
-          { variant: "error" }
-        );
-      },
-    }
-  );
 
   const { data: answerData, isLoading: isFetchingAnswer } = useQuery(
     ["answer", id],
     async () => {
-      const response = await fetchRequest<null, { text: string; questions: Question[]; question_id: number; other: boolean, value: number }>(
+      const response = await fetchRequest<null, { text: string; question_id: number; other: boolean, value: number }>(
         `/answers/${id}`,
         { method: "GET" }
       );
@@ -96,12 +57,6 @@ export default function EditAnswer() {
         setValue("text", data.text);
         setValue("other", data.other);
         setValue("value", data.value);
-        setValue("questions", data.questions.map(question => ({
-          id: question.id,
-          text: question.text,
-          user_group: { id: question.user_groups, text: "" },
-          last_change: ""
-        })));
       
       },
       onError: (error) => {
@@ -118,7 +73,7 @@ export default function EditAnswer() {
     async (data: Answer) => {
       await fetchRequest(`/answers/${id}`, {
         method: "PUT",
-        body: { text: data.text, question_id: data.questions.map(q => q.id), other: data.other, value: data.value },
+        body: { text: data.text, other: data.other, value: data.value },
       });
     },
     {
@@ -135,7 +90,7 @@ export default function EditAnswer() {
     }
   );
 
-  if (isFetchingAnswer || isFetchingQuestions || getValues('questions.0.id') === 0) {
+  if (isFetchingAnswer || getValues("text") === "") {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
         <CircularProgress />
@@ -150,17 +105,18 @@ export default function EditAnswer() {
       alignItems: "center", 
       padding: { xs: 2, sm: 4 }
     }}>
-      <Box sx={{ 
-        width: "100%",
-        maxWidth: { xs: "100%", sm: "50vw" },
-        textAlign: "center",
-        ...(isDesktop && {
-          backgroundColor: "white",
-          borderRadius: 3,
-          boxShadow: 4,
-          padding: 4
-        })
-      }}>
+      <Box sx={{
+          width: "100%",
+          maxWidth: 420,
+          textAlign: "center",
+          ...(isDesktop && {
+            backgroundColor: "white",
+            borderRadius: 3,
+            boxShadow: 4,
+            padding: 4
+          })
+        }}
+      >
         <Typography variant="h4" component="h1" gutterBottom sx={{ 
           color: "#5E3BEE",
           fontSize: { xs: '1.5rem', sm: '2rem' }
@@ -178,55 +134,6 @@ export default function EditAnswer() {
               control={control}
               render={({ field }) => (
                 <TextField {...field} label="Texto da Resposta" fullWidth variant="outlined" error={!!errors.text} helperText={errors.text?.message} />
-              )}
-            />
-
-            <Controller
-              name="questions"
-              control={control}
-              render={({ field }) => (
-                <Autocomplete
-                  {...field}
-                  multiple
-                  options={questions || []}
-                  getOptionLabel={(option) => option.text}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  onChange={(_, newValue) => field.onChange(newValue)}
-                  loading={isFetchingQuestions}
-                  sx={{
-                    '& .MuiAutocomplete-tag': {
-                      maxWidth: '100%',
-                      margin: '2px',
-                      '& .MuiChip-label': {
-                        whiteSpace: 'normal'
-                      }
-                    }
-                  }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      sx={{
-                        ".MuiInputBase-root": {
-                          flexWrap: "wrap",
-                          alignItems: "flex-start",
-                          minHeight: "80px",
-                        }
-                      }}
-                      label="Selecionar Perguntas"
-                      error={!!errors.questions}
-                      helperText={errors.questions?.message}
-                      InputProps={{
-                        ...params.InputProps,
-                        endAdornment: (
-                          <>
-                            {isFetchingQuestions ? <CircularProgress size={20} /> : null}
-                            {params.InputProps.endAdornment}
-                          </>
-                        ),
-                      }}
-                    />
-                  )}
-                />
               )}
             />
 
