@@ -16,11 +16,23 @@ interface UserGroup {
   description?: string;
 }
 
+export interface Answer {
+  id: number;
+  text: string;
+}
+
 interface Question {
   id: number;
   text: string;
   last_change: string;
   user_groups: UserGroup[];
+  answers: Answer[];
+}
+
+interface Form {
+  text: string; 
+  userGroups: UserGroup[], 
+  answers: Answer[]
 }
 
 
@@ -36,6 +48,15 @@ const schema = yup.object().shape({
     )
     .min(1, "Selecione ao menos um grupo de usuários")
     .required("O grupo de usuários é obrigatório"),
+  answers: yup
+      .array()
+      .of(yup.object().shape(
+        { 
+          id: yup.number().required(), 
+          text: yup.string().required() 
+        }))
+      .min(1, "Selecione ao menos uma resposta")
+      .required("A resposta é obrigatória"),
 });
 
 export default function EditQuestion() {
@@ -71,6 +92,22 @@ export default function EditQuestion() {
     }
   );
 
+  const { data: answers, isLoading: loadingAnswers } = useQuery<Answer[]>(
+    "answers",
+    async () => {
+      const response = await fetchRequest<null, Answer[]>("/answers", { method: "GET" });
+      return response.body;
+    },
+    {
+      onError: (error: unknown) => {
+        enqueueSnackbar(
+          `Erro ao carregar respostas: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+          { variant: "error" }
+        );
+      },
+    }
+  );  
+
   const { data: questionData, isLoading: isFetchingQuestion } = useQuery<Question>(
     ["question", id],
     async (): Promise<Question> => {
@@ -80,11 +117,17 @@ export default function EditQuestion() {
     {
       enabled: !!id && !!userGroups,
       onSuccess: (data) => {
-        setValue("text", data.text);
         const matchedGroups = data.user_groups.map(group =>
           userGroups?.find(g => g.id === group.id)
         ).filter(Boolean) as UserGroup[];
+
+        const matchedAnswers = data.answers.map(answer =>
+          answers?.find(g => g.id === answer.id)
+        ).filter(Boolean) as Answer[];
+
+        setValue("text", data.text);
         setValue("userGroups", matchedGroups);
+        setValue("answers", matchedAnswers);
       },
       onError: (error) => {
         enqueueSnackbar(
@@ -97,12 +140,14 @@ export default function EditQuestion() {
   );
 
   const updateMutation = useMutation(
-    async (data: {text: string, userGroups: UserGroup[]}) => {
+    async (data: Form) => {
+      console.log(data)
       await fetchRequest(`/questions/${id}`, {
         method: "PUT",
         body: { 
           text: data.text,
           user_group_ids: data.userGroups.map((group) => group.id),
+          answer_ids: data.answers.map((answer) => answer.id),
         },
       });
     },
@@ -180,6 +225,44 @@ export default function EditQuestion() {
                       variant="outlined"
                       error={!!errors.userGroups}
                       helperText={(errors.userGroups as any)?.message}
+                    />
+                  )}
+                />
+              )}
+            />
+
+            <Controller
+              name="answers"
+              control={control}
+              render={({ field }) => (
+                <Autocomplete
+                  {...field}
+                  multiple
+                  options={answers || []}
+                  getOptionLabel={(option) => option.text}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  loading={loadingAnswers}
+                  onChange={(_, newValue) => field.onChange(newValue)}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Selecionar Respostas"
+                      fullWidth
+                      error={!!errors.answers}
+                      helperText={
+                        Array.isArray(errors.answers)
+                          ? errors.answers[0]?.message
+                          : (errors.answers as any)?.message
+                      }
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {loadingAnswers ? <CircularProgress size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
                     />
                   )}
                 />
