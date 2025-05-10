@@ -25,6 +25,7 @@ import { jwtVerify } from "jose";
 import { useSnackbar } from "notistack";
 import { useState, use } from "react";
 import { useRouter } from "next/navigation";
+import { notFound } from "next/navigation";
 
 interface Answer {
   id: number;
@@ -202,6 +203,10 @@ export default function EditQuestionForm({ params }: { params: Promise<{ id: str
             },
         }
     );
+
+    if (responseData && userId && responseData.user_id !== userId) {
+        notFound();
+      }      
 
     const { isLoading: isSubmittingForm, mutate: submitMutation } = useMutation(
         async (data: FormValues) => {
