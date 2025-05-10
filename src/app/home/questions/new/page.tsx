@@ -15,6 +15,18 @@ export interface UserGroup {
   text: string;
 }
 
+export interface Answer {
+  id: number;
+  text: string;
+}
+
+interface Form {
+  text: string; 
+  userGroups: UserGroup[], 
+  answers: Answer[]
+}
+
+
 const schema = yup.object().shape({
   text: yup.string().trim().required("O texto da questão é obrigatório"),
   userGroups: yup
@@ -27,7 +39,17 @@ const schema = yup.object().shape({
     )
     .min(1, "Selecione ao menos um grupo de usuários")
     .required("O grupo de usuários é obrigatório"),
+  answers: yup
+    .array()
+    .of(yup.object().shape(
+      { 
+        id: yup.number().required(), 
+        text: yup.string().required() 
+      }))
+    .min(1, "Selecione ao menos uma resposta")
+    .required("A resposta é obrigatória"),
 });
+
 
 export default function CreateQuestion() {
   const router = useRouter();
@@ -39,11 +61,12 @@ export default function CreateQuestion() {
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
-  } = useForm({
+  } = useForm<Form>({
     resolver: yupResolver(schema),
     defaultValues: {
       text: "",
       userGroups: [],
+      answers: [],
     },
   });
 
@@ -63,13 +86,30 @@ export default function CreateQuestion() {
     }
   );
 
+  const { data: answers, isLoading: loadingAnswers } = useQuery<Answer[]>(
+    "answers",
+    async () => {
+      const response = await fetchRequest<null, Answer[]>("/answers", { method: "GET" });
+      return response.body;
+    },
+    {
+      onError: (error: unknown) => {
+        enqueueSnackbar(
+          `Erro ao carregar respostas: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+          { variant: "error" }
+        );
+      },
+    }
+  );  
+
   const saveQuestionMutation = useMutation(
-    async (data: { text: string; userGroups: UserGroup[] }) => {
+    async (data: Form) => {
       await fetchRequest("/questions", {
         method: "POST",
         body: {
           text: data.text,
           user_group_ids: data.userGroups.map((user_group) => user_group.id), 
+          answer_ids: data.answers.map((answer) => answer.id),
         },
       });
     },
@@ -88,7 +128,7 @@ export default function CreateQuestion() {
     }
   );
 
-  const onSubmit = async (data: { text: string; userGroups: UserGroup[] }) => {
+  const onSubmit = async (data: Form) => {
     await saveQuestionMutation.mutateAsync(data);
   };
 
@@ -164,6 +204,45 @@ export default function CreateQuestion() {
               />
             )}
           />
+
+          <Controller
+            name="answers"
+            control={control}
+            render={({ field }) => (
+              <Autocomplete
+                {...field}
+                multiple
+                options={answers || []}
+                getOptionLabel={(option) => option.text}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                loading={loadingAnswers}
+                onChange={(_, newValue) => field.onChange(newValue)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Selecionar Respostas"
+                    fullWidth
+                    error={!!errors.answers}
+                    helperText={
+                      Array.isArray(errors.answers)
+                        ? errors.answers[0]?.message
+                        : (errors.answers as any)?.message
+                    }
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loadingAnswers ? <CircularProgress size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            )}
+          />
+
 
           <Box sx={{ 
             display: "flex", 
