@@ -334,7 +334,7 @@ export default function QuestionForm() {
           {formData.map((question, questionIndex) => (
             <fieldset key={question.id} style={{ border: '1px solid #ccc', padding: '1rem', marginBottom: '1.5rem' }}>
               <legend>
-                <Typography component="h2" variant="subtitle1" id={`legend-${question.id}`}>
+                <Typography component="h2" sx={{ paddingInline: '1rem' }} variant="subtitle1" id={`legend-${question.id}`}>
                   {question.text}
                 </Typography>
               </legend>
