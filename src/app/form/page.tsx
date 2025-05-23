@@ -332,67 +332,82 @@ export default function QuestionForm() {
             Questionário
           </Typography>
           {formData.map((question, questionIndex) => (
-            <div key={question.id} className="mb-4">
-              <Typography variant="h6" gutterBottom>
-                {question.text}
-              </Typography>
+            <fieldset key={question.id} style={{ border: '1px solid #ccc', padding: '1rem', marginBottom: '1.5rem' }}>
+              <legend>
+                <Typography component="h2" variant="subtitle1" id={`legend-${question.id}`}>
+                  {question.text}
+                </Typography>
+              </legend>
               <FormControl component="fieldset" error={!!errors.answers?.[questionIndex]?.answer_id}>
                 <Controller
-                  name={`answers`}
+                  name="answers"
                   control={control}
-                  render={({ field }) => (
-                    <RadioGroup
-                      value={field.value.find((a) => a.question_id === question.id)?.answer_id || ""}
-                      onChange={(e) => {
-                        const selectedAnswerId = Number(e.target.value);
-                        const selectedAnswer = question.answers.find((a) => a.id === selectedAnswerId);
+                  render={({ field }) => {
+                    const selectedAnswer = field.value.find((a) => a.question_id === question.id)?.answer_id || "";
 
-                        field.onChange([
-                          ...field.value.filter((a) => a.question_id !== question.id),
-                          {
+                    return (
+                      <RadioGroup
+                        aria-labelledby={`legend-${question.id}`}
+                        name={`question-${question.id}`}
+                        value={selectedAnswer}
+                        onChange={(e) => {
+                          const answerId = Number(e.target.value);
+                          const answer = question.answers.find(a => a.id === answerId);
+
+                          const newAnswers = field.value.filter(a => a.question_id !== question.id);
+                          newAnswers.push({
                             question_id: question.id,
-                            answer_id: selectedAnswerId,
-                            other_text: selectedAnswer?.other ? "" : undefined,
-                          },
-                        ]);
-                      }}
-                    >
-                      {question.answers.map((answer) => (
-                        <div key={answer.id}>
-                          <FormControlLabel
-                            value={answer.id}
-                            control={<Radio sx={{ color: "#7E57C2" }} />}
-                            label={answer.text}
-                          />
-                          {answer.other &&
-                            watch("answers").find((a) => a.question_id === question.id)?.answer_id === answer.id && (
+                            answer_id: answerId,
+                            other_text: answer?.other ? "" : undefined,
+                          });
+
+                          field.onChange(newAnswers);
+                        }}
+                      >
+                        {question.answers.map(answer => (
+                          <div key={answer.id}>
+                            <FormControlLabel
+                              control={<Radio id={`answer-${answer.id}`} />}
+                              label={
+                                <label htmlFor={`answer-${answer.id}`}>
+                                  {answer.text}
+                                </label>
+                              }
+                              value={answer.id}
+                            />
+                            {answer.other && selectedAnswer === answer.id && (
                               <Controller
-                                name={`answers.${question.id}.other_text`}
+                                name={`answers.${questionIndex}.other_text`}
                                 control={control}
                                 render={({ field: otherField }) => (
-                                  <TextField
-                                    {...otherField}
-                                    fullWidth
-                                    variant="outlined"
-                                    size="small"
-                                    placeholder="Digite sua resposta"
-                                    sx={{ mt: 1 }}
-                                  />
+                                  <>
+                                    <label htmlFor={`other-${answer.id}`}>Descreva:</label>
+                                    <TextField
+                                      id={`other-${answer.id}`}
+                                      {...otherField}
+                                      fullWidth
+                                      variant="outlined"
+                                      size="small"
+                                      placeholder="Digite sua resposta"
+                                      sx={{ mt: 1 }}
+                                    />
+                                  </>
                                 )}
                               />
                             )}
-                        </div>
-                      ))}
-                    </RadioGroup>
-                  )}
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    );
+                  }}
                 />
-                {errors.answers && (
-                  <FormHelperText sx={{ fontSize: 14 }} error>
-                    {errors.answers?.message}
+                {errors.answers?.[questionIndex]?.answer_id && (
+                  <FormHelperText role="alert">
+                    {errors.answers[questionIndex]?.answer_id?.message}
                   </FormHelperText>
                 )}
               </FormControl>
-            </div>
+            </fieldset>
           ))}
           <div className="my-2 mt-16">
             <Button
