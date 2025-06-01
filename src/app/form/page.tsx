@@ -254,7 +254,7 @@ export default function QuestionForm() {
   if (!userResponses || isUserIdLoading || isFormDataLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: 250 }}>
-        <CircularProgress />
+        <CircularProgress aria-label="Carregando o questionário" />
       </Box>
     );
   }
@@ -297,7 +297,7 @@ export default function QuestionForm() {
                 }}
                 disabled={loadingReportId === userResponses[userResponses.length - 1].id}
               >
-                {loadingReportId === userResponses[userResponses.length - 1].id ? <CircularProgress size={25} sx={{ color: "#FFF", marginInline: "4.5rem" }} /> : "Visualizar Resposta"}              
+                {loadingReportId === userResponses[userResponses.length - 1].id ? <CircularProgress aria-label="Carregando a visualização das suas respostas" size={25} sx={{ color: "#FFF", marginInline: "4.5rem" }} /> : "Visualizar Resposta"}              
               </Button>
               <Button
                 variant="contained"
@@ -305,7 +305,7 @@ export default function QuestionForm() {
                 onClick={() => router.push(`/form/edit/${userResponses[userResponses.length - 1].id}`)}
                 disabled={loadingReportId === userResponses[userResponses.length - 1].id}
               >
-                {loadingReportId === userResponses[userResponses.length - 1].id ? <CircularProgress size={25} sx={{ color: "#FFF", marginInline: "4.5rem" }} /> : "Editar Resposta"}              
+                {loadingReportId === userResponses[userResponses.length - 1].id ? <CircularProgress aria-label="Carregando página de edição do questionário" size={25} sx={{ color: "#FFF", marginInline: "4.5rem" }} /> : "Editar Resposta"}              
               </Button>
             </Box>
           </Paper>
@@ -321,7 +321,7 @@ export default function QuestionForm() {
   return (
     <Container maxWidth="sm" className="flex items-center justify-center h-fit">
       <Backdrop open={isSubmittingForm} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-        <CircularProgress color="inherit" />
+        <CircularProgress aria-label="Enviando suas respostas" color="inherit" />
       </Backdrop>
       <Paper elevation={3} className="p-6 w-full">
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -338,7 +338,7 @@ export default function QuestionForm() {
                   {question.text}
                 </Typography>
               </legend>
-              <FormControl component="fieldset" error={!!errors.answers?.[questionIndex]?.answer_id}>
+              <FormControl sx={{width: "100%"}} component="fieldset" error={!!errors.answers?.[questionIndex]?.answer_id}>
                 <Controller
                   name="answers"
                   control={control}
@@ -365,14 +365,10 @@ export default function QuestionForm() {
                         }}
                       >
                         {question.answers.map(answer => (
-                          <div key={answer.id}>
-                            <FormControlLabel
+                          <div key={answer.id} className="p-3 w-full">
+                            <FormControlLabel sx={{ width: "100%" }}
                               control={<Radio id={`answer-${answer.id}`} />}
-                              label={
-                                <label htmlFor={`answer-${answer.id}`}>
-                                  {answer.text}
-                                </label>
-                              }
+                              label={answer.text}
                               value={answer.id}
                             />
                             {answer.other && selectedAnswer === answer.id && (
@@ -424,7 +420,7 @@ export default function QuestionForm() {
               type="submit"
               disabled={isSubmittingForm}
             >
-              {isSubmittingForm ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
+              {isSubmittingForm ? <CircularProgress aria-label="Carregando" size={20} sx={{ color: "#FFF" }} /> : "Salvar"}
             </Button>
             <Button
               variant="contained"
