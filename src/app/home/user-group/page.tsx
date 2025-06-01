@@ -86,6 +86,7 @@ export default function UserGroups() {
         Grupos de Usuários
       </Typography>
       <Button
+        id="create-user-group-button"
         variant="contained"
         onClick={() => router.push("/home/user-group/new")}
         sx={{ 
@@ -102,7 +103,7 @@ export default function UserGroups() {
         </Box>
       )}
       <Box sx={{ display: "grid", gap: 2 }}>
-        {userGroups?.map((group) => (
+        {userGroups?.map((group, index) => (
           <Card
             key={group.id}
             variant="outlined"
@@ -131,6 +132,7 @@ export default function UserGroups() {
               p: { xs: 1, sm: 2 }
             }}>
               <Button
+                id={`edit-user-group-button-${index}`}
                 variant="contained"
                 color="success"
                 onClick={() => router.push(`/home/user-group/edit/${group.id}`)}
@@ -142,6 +144,7 @@ export default function UserGroups() {
                 Editar
               </Button>
               <Button
+                id={`delete-user-group-button-${index}`}
                 variant="contained"
                 color="error"
                 onClick={() => handleDeleteClick(group.id)}
