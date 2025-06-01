@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Box, Button, TextField, Typography, CircularProgress, Paper, Autocomplete, FormControlLabel, Switch, useMediaQuery } from "@mui/material";
 import { useSnackbar } from "notistack";
@@ -41,6 +41,7 @@ export default function EditUser() {
   const { enqueueSnackbar } = useSnackbar();
   const { id }: any = useParams();
   const isDesktop = useMediaQuery('(min-width:600px)');
+  const [isUserInitialized, setIsUserInitialized] = useState(false);
 
   const {
     control,
@@ -75,6 +76,7 @@ export default function EditUser() {
         setValue("email", data.email);
         setValue("user_groups", data.user_groups);
         setValue("isAdmin", data.isAdmin);
+        setIsUserInitialized(true);
       },
       onError: (error) => {
         enqueueSnackbar(`Erro ao carregar o usuário: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
@@ -132,7 +134,7 @@ export default function EditUser() {
     router.push("/home/users");
   };
 
-  if (isFetchingUser || isFetchingGroups || getValues("user_groups").length === 0) {
+  if (isFetchingUser || isFetchingGroups || !isUserInitialized) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
         <CircularProgress />
