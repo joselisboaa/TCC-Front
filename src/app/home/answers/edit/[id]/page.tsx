@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Box, Button, TextField, Typography, CircularProgress, Autocomplete, Paper, FormControlLabel, Switch, useMediaQuery } from "@mui/material";
 import { useSnackbar } from "notistack";
@@ -32,6 +33,7 @@ export default function EditAnswer() {
   const { enqueueSnackbar } = useSnackbar();
   const { id }: any = useParams();
   const isDesktop = useMediaQuery('(min-width:600px)');
+  const [isAnswerInitialized, setIsAnswerInitialized] = useState(false);
 
   const { control, handleSubmit, getValues, setValue, formState: { errors } } = useForm<Answer>({
     resolver: yupResolver(schema),
@@ -57,7 +59,7 @@ export default function EditAnswer() {
         setValue("text", data.text);
         setValue("other", data.other);
         setValue("value", data.value);
-      
+        setIsAnswerInitialized(true);
       },
       onError: (error) => {
         enqueueSnackbar(
@@ -90,7 +92,7 @@ export default function EditAnswer() {
     }
   );
 
-  if (isFetchingAnswer || getValues("text") === "") {
+  if (isFetchingAnswer || !isAnswerInitialized) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
         <CircularProgress />
