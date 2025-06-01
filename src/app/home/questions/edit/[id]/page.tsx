@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Box, Button, TextField, Typography, CircularProgress, Paper, Autocomplete } from "@mui/material";
 import { useSnackbar } from "notistack";
@@ -64,6 +65,7 @@ export default function EditQuestion() {
   const { enqueueSnackbar } = useSnackbar();
   const { id }: any = useParams();
   const isDesktop = useMediaQuery('(min-width:600px)');
+  const [isQuestionInitialized, setIsQuestionInitialized] = useState(false);
 
   const {
     control,
@@ -128,6 +130,7 @@ export default function EditQuestion() {
         setValue("text", data.text);
         setValue("userGroups", matchedGroups);
         setValue("answers", matchedAnswers);
+        setIsQuestionInitialized(true);
       },
       onError: (error) => {
         enqueueSnackbar(
@@ -163,7 +166,7 @@ export default function EditQuestion() {
     }
   );
 
-  if (isFetchingQuestion || isFetchingUserGroups || getValues("userGroups").length === 0) {
+  if (isFetchingQuestion || isFetchingUserGroups || !isQuestionInitialized) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
         <CircularProgress />
