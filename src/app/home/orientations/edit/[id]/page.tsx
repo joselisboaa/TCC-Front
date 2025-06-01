@@ -1,10 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Box, Button, TextField, Typography, CircularProgress, Autocomplete, Paper } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { useQuery, useMutation } from "react-query";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, set } from "react-hook-form";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import fetchRequest from "@/utils/fetchRequest";
@@ -56,6 +57,7 @@ export default function EditOrientation() {
   const { enqueueSnackbar } = useSnackbar();
   const { id }: any = useParams();
   const isDesktop = useMediaQuery('(min-width:600px)');
+  const [isOrientationInitialized, setIsOrientationInitialized] = useState(false);
 
   const { control, handleSubmit, setValue, getValues, formState: { errors } } = useForm<FormData>({
     resolver: yupResolver(schema),
@@ -80,6 +82,7 @@ export default function EditOrientation() {
         setValue("text", data.text);
         setValue("question", data.question);
         setValue("threshold", data.threshold);
+        setIsOrientationInitialized(true);
       },
       onError: (error) => {
         enqueueSnackbar(`Erro ao carregar a orientação: ${error instanceof Error ? error.message : "Erro desconhecido"}`, { variant: "error" });
@@ -119,7 +122,7 @@ export default function EditOrientation() {
     updateMutation.mutate(data);
   };
 
-  if (isFetchingOrientation || isFetchingQuestions || getValues("question.id") === 0) {
+  if (isFetchingOrientation || isFetchingQuestions || !isOrientationInitialized) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
         <CircularProgress />
