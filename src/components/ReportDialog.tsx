@@ -61,29 +61,73 @@ export default function ReportDialog({ open, onClose, jsonData }: ReportDialogPr
   const [loading, setLoading] = useState(false);
 
   const handleDownloadPDF = async () => {
-    if (!jsonData || !pdfRef.current) return;
-
+    if (!jsonData) return;
+  
     setLoading(true);
-
-    const canvas = await html2canvas(pdfRef.current, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
-
-    const pdf = new jsPDF("p", "mm", "a4");
-    const imgWidth = 190;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    pdf.setFontSize(20);
-    pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(126, 87, 194);
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const textWidth = pdf.getTextWidth("Relatório do Usuário");
-    pdf.text("Relatório do Usuário", (pageWidth - textWidth) / 2, 15);
-
-    pdf.addImage(imgData, "PNG", 10, 25, imgWidth, imgHeight);
-    pdf.save("relatorio.pdf");
-
+  
+    const doc = new jsPDF("p", "mm", "a4");
+    const margin = 15;
+    const lineHeight = 7;
+    const pageWidth = 180;
+    let y = 20;
+  
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(126, 87, 194);
+    const title = "Relatório do Usuário";
+    const textWidth = doc.getTextWidth(title);
+    doc.text(title, (210 - textWidth) / 2, 15);
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
+  
+    const user = jsonData.user;
+    const infoLines = [
+      `Data de envio: ${new Date(jsonData.timestamp).toLocaleString()}`,
+      `Nome: ${user.name || "Usuário não identificado"}`,
+      `Grupos: ${user.user_groups.map(g => g.text).join(", ") || "Nenhum"}`
+    ];
+  
+    infoLines.forEach(line => {
+      doc.text(line, margin, y);
+      y += lineHeight;
+    });
+  
+    y += 5;
+  
+    jsonData.answeredQuestions.forEach((item, index) => {
+      if (y > 260) {
+        doc.addPage();
+        y = 20;
+      }
+  
+      doc.setFont("helvetica", "bold");
+      const questionLines = doc.splitTextToSize(`${index + 1}. ${item.question.text}`, pageWidth);
+      questionLines.forEach(line => {
+        doc.text(line, margin, y);
+        y += lineHeight;
+      });
+  
+      y += 2;
+      doc.setFont("helvetica", "normal");
+      doc.text(`Resposta: ${item.answer.text}`, margin + 5, y);
+      y += lineHeight;
+      doc.text(`Valor: ${item.answer.value}`, margin + 5, y);
+      y += 10;
+    });
+  
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Página ${i} de ${totalPages}`, margin, 287);
+    }
+  
+    doc.save("relatorio-usuario.pdf");
     setLoading(false);
   };
+  
 
   return (
     <Dialog 
