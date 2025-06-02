@@ -23,7 +23,7 @@ import { useQuery, useMutation } from "react-query";
 import Cookies from "js-cookie";
 import { jwtVerify } from "jose";
 import { useSnackbar } from "notistack";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import ReportDialog from "@/components/ReportDialog";
 import { useRouter } from "next/navigation";
 
@@ -123,6 +123,8 @@ export default function QuestionForm() {
   const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
   const [jsonData, setJsonData] = useState<DetailedResponse | null>(null);
   const [loadingReportId, setLoadingReportId] = useState<number | null>(null);
+  const [unansweredQuestionIds, setUnansweredQuestionIds] = useState<number[]>([]);
+  const firstUnansweredRef = useRef<HTMLFieldSetElement>(null);
   const router = useRouter();
 
 
@@ -242,13 +244,24 @@ export default function QuestionForm() {
     if (unansweredQuestions && unansweredQuestions.length > 0) {
       const msg = "Você deve responder todas as perguntas antes de enviar.";
       setFormErrorMessage(msg);
+      setUnansweredQuestionIds(unansweredQuestions.map(q => q.id));
       enqueueSnackbar(msg, { variant: "warning" });
+      
+      setTimeout(() => {
+        firstUnansweredRef.current?.focus();
+        firstUnansweredRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+      }, 100);
+      
       return;
     }
   
+    setUnansweredQuestionIds([]);
     setFormErrorMessage(null);
     submitMutation(data);
-  };  
+  };
   
 
   if (!userResponses || isUserIdLoading || isFormDataLoading) {
@@ -332,10 +345,49 @@ export default function QuestionForm() {
             Questionário
           </Typography>
           {formData.map((question, questionIndex) => (
-            <fieldset key={question.id} style={{ border: '1px solid #ccc', padding: '1rem', marginBottom: '1.5rem' }}>
+            <fieldset
+            key={question.id}
+            ref={unansweredQuestionIds[0] === question.id ? firstUnansweredRef : undefined}
+            style={{ 
+              border: '1px solid #ccc', 
+              padding: '1rem', 
+              marginBottom: '1.5rem',
+              borderColor: unansweredQuestionIds.includes(question.id) ? 'red' : '#ccc',
+              position: 'relative'
+            }}
+            tabIndex={-1}
+            aria-labelledby={`legend-${question.id} ${unansweredQuestionIds.includes(question.id) ? `error-${question.id}` : ''}`}
+            aria-invalid={unansweredQuestionIds.includes(question.id)}
+          >
+            {unansweredQuestionIds.includes(question.id) && (
+              <Box 
+                component="span"
+                sx={{
+                  position: 'absolute',
+                  top: '-10px',
+                  left: '16px',
+                  backgroundColor: 'white',
+                  px: 1,
+                  color: 'red',
+                  fontSize: '0.75rem'
+                }}
+                aria-hidden="true"
+              >
+                Campo obrigatório
+              </Box>
+            )}
+            
             <legend>
-              <Typography component="h2" sx={{ paddingInline: '1rem' }} variant="subtitle1" id={`legend-${question.id}`}
-                aria-label={`Pergunta: ${question.text} (campo obrigatório)`}>
+              <Typography 
+                component="h2" 
+                sx={{ 
+                  paddingInline: '1rem',
+                  color: unansweredQuestionIds.includes(question.id) ? 'red' : 'inherit'
+                }} 
+                variant="subtitle1" 
+                id={`legend-${question.id}`}
+                aria-label={`Pergunta: ${question.text} ${unansweredQuestionIds.includes(question.id) ? '- Campo obrigatório não respondido' : ''}`}
+              >
                 {question.text} <span aria-hidden="true">*</span>
               </Typography>
             </legend>
