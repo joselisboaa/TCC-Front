@@ -76,15 +76,13 @@ export default function AverageDialog({
     const pageWidth = 190;
     const margin = 15;
   
-    // Cabeçalho
     doc.setFontSize(20);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(126, 87, 194);
     const textWidth = doc.getTextWidth("Relatório Geral");
-    doc.text("Relatório Geral", (210 - textWidth) / 2, 15); // Centralizado
+    doc.text("Relatório Geral", (210 - textWidth) / 2, 15); 
     y = 25;
   
-    // Configuração para o conteúdo principal
     doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
@@ -93,13 +91,11 @@ export default function AverageDialog({
       const orientation = orientations.find(o => o.question_id === item.id)?.text || 
                         "Nenhuma orientação aplicável.";
   
-      // Verifica se precisa de nova página
       if (y > 250) {
         doc.addPage();
         y = 20;
       }
   
-      // Pergunta (em negrito)
       doc.setFont("helvetica", "bold");
       const questionLines = doc.splitTextToSize(item.text, pageWidth);
       questionLines.forEach(line => {
@@ -107,7 +103,6 @@ export default function AverageDialog({
         y += lineHeight;
       });
       
-      // Dados da avaliação
       doc.setFont("helvetica", "normal");
       y += 2;
       doc.text(`Avaliação média: ${item.average}`, margin, y);
@@ -115,33 +110,27 @@ export default function AverageDialog({
       doc.text(`Total de respostas: ${item.total}`, margin, y);
       y += lineHeight;
   
-      // Faixa colorida (indicador de alerta)
       doc.setFillColor(item.threshold);
-      doc.rect(margin, y, pageWidth, 5, 'F'); // Retângulo preenchido
+      doc.rect(margin, y, pageWidth, 5, 'F'); 
       y += 8;
   
-      // Linha divisória
       doc.line(margin, y, margin + pageWidth, y);
       y += 10;
   
-      // Título "Orientação" em negrito
       doc.setFont("helvetica", "bold");
       doc.text("Orientação:", margin, y);
       y += lineHeight;
   
-      // Texto da orientação
       doc.setFont("helvetica", "normal");
       const orientationLines = doc.splitTextToSize(orientation, pageWidth);
       orientationLines.forEach(line => {
-        doc.text(line, margin + 5, y); // Indentação para orientação
+        doc.text(line, margin + 5, y); 
         y += lineHeight;
       });
   
-      // Espaço entre itens
       y += 15;
     });
   
-    // Rodapé
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
