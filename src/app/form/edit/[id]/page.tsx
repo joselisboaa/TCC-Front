@@ -122,7 +122,6 @@ export default function EditQuestionForm({ params }: { params: Promise<{ id: str
     const { enqueueSnackbar } = useSnackbar();
     const router = useRouter();
     const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
-    const [isFormReady, setIsFormReady] = useState(false);
     const resolvedParams = use(params);
     const responseId = resolvedParams.id;
 
@@ -206,7 +205,7 @@ export default function EditQuestionForm({ params }: { params: Promise<{ id: str
 
     if (responseData && userId && responseData.user_id !== userId) {
         notFound();
-      }      
+    }      
 
     const { isLoading: isSubmittingForm, mutate: submitMutation } = useMutation(
         async (data: FormValues) => {
@@ -258,14 +257,13 @@ export default function EditQuestionForm({ params }: { params: Promise<{ id: str
         reset({ answers: [] });
     };
 
-
     const isDataReady = !isUserIdLoading && !isFormDataLoading && !isResponseLoading && 
                        responseData && formData && getValues("answers").length > 0;
 
     if (!isDataReady) {
         return (
-            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
-                <CircularProgress />
+            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: 250 }}>
+                <CircularProgress aria-label="Carregando o questionário" />
             </Box>
         );
     }
@@ -281,7 +279,7 @@ export default function EditQuestionForm({ params }: { params: Promise<{ id: str
     return (
     <Container maxWidth="sm" className="flex items-center justify-center h-fit">
         <Backdrop open={isSubmittingForm} sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-            <CircularProgress color="inherit" />
+            <CircularProgress aria-label="Enviando suas respostas" color="inherit" />
         </Backdrop>
         <Paper elevation={3} className="p-6 w-full">
             <form onSubmit={handleSubmit(onSubmit)}>
@@ -296,11 +294,21 @@ export default function EditQuestionForm({ params }: { params: Promise<{ id: str
                     const selectedAnswer = question.answers.find((a) => a.id === currentAnswer?.answer_id);
                     
                     return (
-                        <div key={question.id} className="mb-4">
-                            <Typography variant="h6" gutterBottom>
-                                {question.text}
-                            </Typography>
-                            <FormControl component="fieldset" error={!!errors.answers?.[questionIndex]?.answer_id}>
+                        <fieldset key={question.id} style={{ border: '1px solid #ccc', padding: '1rem', marginBottom: '1.5rem' }}>
+                            <legend>
+                                <Typography component="h2" sx={{ paddingInline: '1rem' }} variant="subtitle1" id={`legend-${question.id}`}
+                                    aria-label={`Pergunta: ${question.text} (campo obrigatório)`}>
+                                    {question.text} <span aria-hidden="true">*</span>
+                                </Typography>
+                            </legend>
+                            <FormControl
+                                sx={{ width: '100%' }}
+                                component="fieldset"
+                                error={!!errors.answers?.[questionIndex]?.answer_id}
+                                aria-required="true"
+                                role="group"
+                                aria-labelledby={`legend-${question.id}`}
+                            >
                                 <Controller
                                     name={`answers`}
                                     control={control}
@@ -322,25 +330,43 @@ export default function EditQuestionForm({ params }: { params: Promise<{ id: str
                                             }}
                                         >
                                             {question.answers.map((answer) => (
-                                                <div key={answer.id}>
+                                                <div key={answer.id} className="p-3 w-full">
                                                     <FormControlLabel
                                                         value={answer.id}
-                                                        control={<Radio sx={{ color: "#7E57C2" }} />}
+                                                        control={
+                                                            <Radio 
+                                                                id={`answer-${answer.id}`}
+                                                                inputProps={{
+                                                                    'aria-label': `${answer.text} (para a pergunta: ${question.text})`,
+                                                                }}
+                                                            />
+                                                        }
                                                         label={answer.text}
+                                                        htmlFor={`answer-${answer.id}`}
+                                                        sx={{ width: '100%', gap: '1rem' }}
+                                                        componentsProps={{
+                                                            typography: { sx: { width: '100%', whiteSpace: 'normal' } }
+                                                        }}
                                                     />
                                                     {answer.other && currentAnswer?.answer_id === answer.id && (
                                                         <Controller
-                                                            name={`answers.${question.id}.other_text`}
+                                                            name={`answers.${questionIndex}.other_text`}
                                                             control={control}
                                                             render={({ field: otherField }) => (
-                                                                <TextField
-                                                                    {...otherField}
-                                                                    fullWidth
-                                                                    variant="outlined"
-                                                                    size="small"
-                                                                    placeholder="Digite sua resposta"
-                                                                    sx={{ mt: 1 }}
-                                                                />
+                                                                <Box mt={1}>
+                                                                    <label htmlFor={`other-${answer.id}`} className="sr-only">
+                                                                        Campo para resposta personalizada
+                                                                    </label>
+                                                                    <TextField
+                                                                        id={`other-${answer.id}`}
+                                                                        {...otherField}
+                                                                        fullWidth
+                                                                        variant="outlined"
+                                                                        size="small"
+                                                                        placeholder="Digite sua resposta"
+                                                                        aria-describedby={`legend-${question.id}`}
+                                                                    />
+                                                                </Box>
                                                             )}
                                                         />
                                                     )}
@@ -349,13 +375,13 @@ export default function EditQuestionForm({ params }: { params: Promise<{ id: str
                                         </RadioGroup>
                                     )}
                                 />
-                                {errors.answers && (
-                                    <FormHelperText sx={{ fontSize: 14 }} error>
-                                        {errors.answers?.message}
+                                {errors.answers?.[questionIndex]?.answer_id && (
+                                    <FormHelperText role="alert" id={`error-${question.id}`}>
+                                        {errors.answers[questionIndex]?.answer_id?.message || "Campo obrigatório"}
                                     </FormHelperText>
                                 )}
                             </FormControl>
-                        </div>
+                        </fieldset>
                     );
                 })}
                 <div className="my-2 mt-16">
@@ -373,46 +399,46 @@ export default function EditQuestionForm({ params }: { params: Promise<{ id: str
                         type="submit"
                         disabled={isSubmittingForm}
                     >
-                        {isSubmittingForm ? <CircularProgress size={20} sx={{ color: "#FFF" }} /> : "Atualizar"}
+                        {isSubmittingForm ? <CircularProgress aria-label="Carregando" size={20} sx={{ color: "#FFF" }} /> : "Atualizar"}
                     </Button>
                     <Button
-                    variant="contained"
-                    sx={{
-                        background: "red",
-                        mt: 2,
-                        color: "#FFFFFF",
-                        fontWeight: "bold",
-                        width: "100%",
-                        padding: "10px",
-                        borderRadius: "8px",
-                    }}
-                    onClick={handleClear}
+                        variant="contained"
+                        sx={{
+                            background: "red",
+                            mt: 2,
+                            color: "#FFFFFF",
+                            fontWeight: "bold",
+                            width: "100%",
+                            padding: "10px",
+                            borderRadius: "8px",
+                        }}
+                        onClick={handleClear}
                     >
-                    Limpar
+                        Limpar
                     </Button>
                     <Button
-                    variant="outlined"
-                    aria-label="Voltar para o início"
-                    sx={{
-                        mt: 2,
-                        color: "#3E1E9A",
-                        borderColor: "#3E1E9A",
-                        width: "100%",
-                        padding: "10px",
-                        borderRadius: "8px",
-                        fontWeight: "bold",
-                        "&:hover": {
-                        borderColor: "#2A1570",
-                        backgroundColor: "rgba(62, 30, 154, 0.08)",
-                        },
-                    }}
-                    onClick={() => router.push("/form")}
+                        variant="outlined"
+                        aria-label="Voltar para o início"
+                        sx={{
+                            mt: 2,
+                            color: "#3E1E9A",
+                            borderColor: "#3E1E9A",
+                            width: "100%",
+                            padding: "10px",
+                            borderRadius: "8px",
+                            fontWeight: "bold",
+                            "&:hover": {
+                                borderColor: "#2A1570",
+                                backgroundColor: "rgba(62, 30, 154, 0.08)",
+                            },
+                        }}
+                        onClick={() => router.push("/form")}
                     >
-                    Voltar
+                        Voltar
                     </Button>
                 </div>
             </form>
         </Paper>
     </Container>
     );
-} 
+}
