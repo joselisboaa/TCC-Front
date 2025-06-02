@@ -69,29 +69,91 @@ export default function AverageDialog({
   };
 
   const handleDownloadPDF = async () => {
-    if (!pdfRef.current) return;
     setLoading(true);
-
-    const canvas = await html2canvas(pdfRef.current, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
-
-    const pdf = new jsPDF("p", "mm", "a4");
-    const imgWidth = 190;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    pdf.setFontSize(20);
-    pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(126, 87, 194);
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const textWidth = pdf.getTextWidth("Relatório Geral");
-    pdf.text("Relatório Geral", (pageWidth - textWidth) / 2, 15);
-
-    pdf.addImage(imgData, "PNG", 10, 25, imgWidth, imgHeight);
-    pdf.save("relatorio-geral.pdf");
-
+    const doc = new jsPDF("p", "mm", "a4");
+    const lineHeight = 7;
+    let y = 20;
+    const pageWidth = 190;
+    const margin = 15;
+  
+    // Cabeçalho
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(126, 87, 194);
+    const textWidth = doc.getTextWidth("Relatório Geral");
+    doc.text("Relatório Geral", (210 - textWidth) / 2, 15); // Centralizado
+    y = 25;
+  
+    // Configuração para o conteúdo principal
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
+  
+    data.forEach((item) => {
+      const orientation = orientations.find(o => o.question_id === item.id)?.text || 
+                        "Nenhuma orientação aplicável.";
+  
+      // Verifica se precisa de nova página
+      if (y > 250) {
+        doc.addPage();
+        y = 20;
+      }
+  
+      // Pergunta (em negrito)
+      doc.setFont("helvetica", "bold");
+      const questionLines = doc.splitTextToSize(item.text, pageWidth);
+      questionLines.forEach(line => {
+        doc.text(line, margin, y);
+        y += lineHeight;
+      });
+      
+      // Dados da avaliação
+      doc.setFont("helvetica", "normal");
+      y += 2;
+      doc.text(`Avaliação média: ${item.average}`, margin, y);
+      y += lineHeight;
+      doc.text(`Total de respostas: ${item.total}`, margin, y);
+      y += lineHeight;
+  
+      // Faixa colorida (indicador de alerta)
+      doc.setFillColor(item.threshold);
+      doc.rect(margin, y, pageWidth, 5, 'F'); // Retângulo preenchido
+      y += 8;
+  
+      // Linha divisória
+      doc.line(margin, y, margin + pageWidth, y);
+      y += 10;
+  
+      // Título "Orientação" em negrito
+      doc.setFont("helvetica", "bold");
+      doc.text("Orientação:", margin, y);
+      y += lineHeight;
+  
+      // Texto da orientação
+      doc.setFont("helvetica", "normal");
+      const orientationLines = doc.splitTextToSize(orientation, pageWidth);
+      orientationLines.forEach(line => {
+        doc.text(line, margin + 5, y); // Indentação para orientação
+        y += lineHeight;
+      });
+  
+      // Espaço entre itens
+      y += 15;
+    });
+  
+    // Rodapé
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Página ${i} de ${totalPages}`, margin, 287);
+    }
+  
+    doc.save("relatorio-acessibilidade.pdf");
     setLoading(false);
   };
-
+  
   return (
     <Dialog 
       open={open} 
