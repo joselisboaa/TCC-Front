@@ -333,77 +333,96 @@ export default function QuestionForm() {
           </Typography>
           {formData.map((question, questionIndex) => (
             <fieldset key={question.id} style={{ border: '1px solid #ccc', padding: '1rem', marginBottom: '1.5rem' }}>
-              <legend>
-                <Typography component="h2" sx={{ paddingInline: '1rem' }} variant="subtitle1" id={`legend-${question.id}`}>
-                  {question.text}
-                </Typography>
-              </legend>
-              <FormControl sx={{width: "100%"}} component="fieldset" error={!!errors.answers?.[questionIndex]?.answer_id}>
-                <Controller
-                  name="answers"
-                  control={control}
-                  render={({ field }) => {
-                    const selectedAnswer = field.value.find((a) => a.question_id === question.id)?.answer_id || "";
+            <legend>
+              <Typography component="h2" sx={{ paddingInline: '1rem' }} variant="subtitle1" id={`legend-${question.id}`}
+                aria-label={`Pergunta: ${question.text} (campo obrigatório)`}>
+                {question.text} <span aria-hidden="true">*</span>
+              </Typography>
+            </legend>
+            <FormControl
+              sx={{ width: '100%' }}
+              component="fieldset"
+              error={!!errors.answers?.[questionIndex]?.answer_id}
+              aria-required="true"
+              role="group"
+              aria-labelledby={`legend-${question.id}`}
+            >
+              <Controller
+                name="answers"
+                control={control}
+                render={({ field }) => {
+                  const selectedAnswer = field.value.find((a) => a.question_id === question.id)?.answer_id || "";
 
-                    return (
-                      <RadioGroup
-                        aria-labelledby={`legend-${question.id}`}
-                        name={`question-${question.id}`}
-                        value={selectedAnswer}
-                        onChange={(e) => {
-                          const answerId = Number(e.target.value);
-                          const answer = question.answers.find(a => a.id === answerId);
-
-                          const newAnswers = field.value.filter(a => a.question_id !== question.id);
-                          newAnswers.push({
-                            question_id: question.id,
-                            answer_id: answerId,
-                            other_text: answer?.other ? "" : undefined,
-                          });
-
-                          field.onChange(newAnswers);
-                        }}
-                      >
-                        {question.answers.map(answer => (
-                          <div key={answer.id} className="p-3 w-full">
-                            <FormControlLabel sx={{ width: "100%" }}
-                              control={<Radio id={`answer-${answer.id}`} />}
-                              label={answer.text}
-                              value={answer.id}
-                            />
-                            {answer.other && selectedAnswer === answer.id && (
-                              <Controller
-                                name={`answers.${questionIndex}.other_text`}
-                                control={control}
-                                render={({ field: otherField }) => (
-                                  <>
-                                    <label htmlFor={`other-${answer.id}`}>Descreva:</label>
-                                    <TextField
-                                      id={`other-${answer.id}`}
-                                      {...otherField}
-                                      fullWidth
-                                      variant="outlined"
-                                      size="small"
-                                      placeholder="Digite sua resposta"
-                                      sx={{ mt: 1 }}
-                                    />
-                                  </>
-                                )}
+                  return (
+                    <RadioGroup
+                      name={`question-${question.id}`}
+                      value={selectedAnswer}
+                      onChange={(e) => {
+                        const answerId = Number(e.target.value);
+                        const answer = question.answers.find((a) => a.id === answerId);
+                        const newAnswers = field.value.filter((a) => a.question_id !== question.id);
+                        newAnswers.push({
+                          question_id: question.id,
+                          answer_id: answerId,
+                          other_text: answer?.other ? "" : undefined,
+                        });
+                        field.onChange(newAnswers);
+                      }}
+                    >
+                      {question.answers.map((answer) => (
+                        <div key={answer.id} className="p-3 w-full">
+                          <FormControlLabel
+                            control={
+                              <Radio
+                                id={`answer-${answer.id}`}
+                                inputProps={{
+                                  'aria-label': `${answer.text} (para a pergunta: ${question.text})`,
+                                }}
                               />
-                            )}
-                          </div>
-                        ))}
-                      </RadioGroup>
-                    );
-                  }}
-                />
-                {errors.answers?.[questionIndex]?.answer_id && (
-                  <FormHelperText role="alert">
-                    {errors.answers[questionIndex]?.answer_id?.message}
-                  </FormHelperText>
-                )}
-              </FormControl>
-            </fieldset>
+                            }
+                            label={answer.text}
+                            htmlFor={`answer-${answer.id}`}
+                            value={answer.id}
+                            sx={{ width: '100%', gap: '1rem' }}
+                            componentsProps={{
+                              typography: { sx: { width: '100%', whiteSpace: 'normal' } }
+                            }}
+                          />
+                          {answer.other && selectedAnswer === answer.id && (
+                            <Controller
+                              name={`answers.${questionIndex}.other_text`}
+                              control={control}
+                              render={({ field: otherField }) => (
+                                <Box mt={1}>
+                                  <label htmlFor={`other-${answer.id}`} className="sr-only">
+                                    Campo para resposta personalizada
+                                  </label>
+                                  <TextField
+                                    id={`other-${answer.id}`}
+                                    {...otherField}
+                                    fullWidth
+                                    variant="outlined"
+                                    size="small"
+                                    placeholder="Digite sua resposta"
+                                    aria-describedby={`legend-${question.id}`}
+                                  />
+                                </Box>
+                              )}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  );
+                }}
+              />
+              {errors.answers?.[questionIndex]?.answer_id && (
+                <FormHelperText role="alert" id={`error-${question.id}`}>
+                  {errors.answers[questionIndex]?.answer_id?.message || "Campo obrigatório"}
+                </FormHelperText>
+              )}
+            </FormControl>
+          </fieldset>          
           ))}
           <div className="my-2 mt-16">
             <Button
